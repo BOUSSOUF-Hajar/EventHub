@@ -1,0 +1,28 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: event-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5433/event_db
+    username: event_user
+    password: event_pwd
+
+  jpa:
+    hibernate:
+      ddl-auto: update # OK pour le dev local ; passer a "validate" + Flyway/Liquibase en production
+    show-sql: true
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8081/realms/eventhub
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

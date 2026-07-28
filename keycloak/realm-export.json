@@ -1,0 +1,52 @@
+{
+  "realm": "eventhub",
+  "enabled": true,
+  "registrationAllowed": true,
+  "roles": {
+    "realm": [
+      { "name": "CUSTOMER", "description": "Peut parcourir les evenements et reserver des places" },
+      { "name": "ORGANIZER", "description": "Peut creer et gerer des evenements" },
+      { "name": "ADMIN", "description": "Acces complet a la plateforme" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "eventhub-frontend",
+      "publicClient": true,
+      "enabled": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["http://localhost:5173/*"],
+      "webOrigins": ["http://localhost:5173"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    },
+    {
+      "clientId": "eventhub-gateway",
+      "publicClient": false,
+      "enabled": true,
+      "protocol": "openid-connect",
+      "secret": "change-me-in-dev",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false
+    }
+  ],
+  "users": [
+    {
+      "username": "alice.customer",
+      "enabled": true,
+      "email": "alice@example.com",
+      "credentials": [{ "type": "password", "value": "password", "temporary": false }],
+      "realmRoles": ["CUSTOMER"]
+    },
+    {
+      "username": "bob.organizer",
+      "enabled": true,
+      "email": "bob@example.com",
+      "credentials": [{ "type": "password", "value": "password", "temporary": false }],
+      "realmRoles": ["ORGANIZER"]
+    }
+  ]
+}

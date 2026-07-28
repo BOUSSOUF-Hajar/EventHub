@@ -1,0 +1,128 @@
+name: eventhub
+
+services:
+
+  # ---------- Bases de donnees (1 par service, pattern database-per-service) ----------
+  postgres-event:
+    image: postgres:16-alpine
+    container_name: eventhub-postgres-event
+    environment:
+      POSTGRES_DB: event_db
+      POSTGRES_USER: event_user
+      POSTGRES_PASSWORD: event_pwd
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg_event_data:/var/lib/postgresql/data
+
+  postgres-booking:
+    image: postgres:16-alpine
+    container_name: eventhub-postgres-booking
+    environment:
+      POSTGRES_DB: booking_db
+      POSTGRES_USER: booking_user
+      POSTGRES_PASSWORD: booking_pwd
+    ports:
+      - "5434:5432"
+    volumes:
+      - pg_booking_data:/var/lib/postgresql/data
+
+  postgres-payment:
+    image: postgres:16-alpine
+    container_name: eventhub-postgres-payment
+    environment:
+      POSTGRES_DB: payment_db
+      POSTGRES_USER: payment_user
+      POSTGRES_PASSWORD: payment_pwd
+    ports:
+      - "5435:5432"
+    volumes:
+      - pg_payment_data:/var/lib/postgresql/data
+
+  # ---------- Bus d'evenements ----------
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: eventhub-rabbitmq
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # UI de management (guest/guest)
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------- Cache / verrou distribue ----------
+  redis:
+    image: redis:7-alpine
+    container_name: eventhub-redis
+    ports:
+      - "6379:6379"
+
+  # ---------- Identity provider ----------
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    container_name: eventhub-keycloak
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
+
+  # ---------- Capture des emails en dev ----------
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: eventhub-mailhog
+    ports:
+      - "1025:1025" # serveur SMTP
+      - "8025:8025" # UI web
+
+  # ---------- Services applicatifs (a decommenter au fur et a mesure du developpement) ----------
+  # gateway:
+  #   build: ./services/gateway
+  #   ports:
+  #     - "8080:8080"
+  #   depends_on:
+  #     - keycloak
+  #
+  # event-service:
+  #   build: ./services/event-service
+  #   ports:
+  #     - "8082:8080"
+  #   depends_on:
+  #     - postgres-event
+  #
+  # booking-service:
+  #   build: ./services/booking-service
+  #   ports:
+  #     - "8083:8080"
+  #   depends_on:
+  #     - postgres-booking
+  #     - rabbitmq
+  #     - redis
+  #
+  # payment-service:
+  #   build: ./services/payment-service
+  #   ports:
+  #     - "8084:8080"
+  #   depends_on:
+  #     - postgres-payment
+  #     - rabbitmq
+  #
+  # notification-service:
+  #   build: ./services/notification-service
+  #   depends_on:
+  #     - rabbitmq
+  #     - mailhog
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - "8090:8080"
+volumes:
+  pg_event_data:
+  pg_booking_data:
+  pg_payment_data:

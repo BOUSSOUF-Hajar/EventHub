@@ -1,0 +1,49 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: booking-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5434/booking_db
+    username: booking_user
+    password: booking_pwd
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8081/realms/eventhub
+
+# TODO: definir ici les noms d'exchange/queue partages avec payment-service
+# et notification-service, par exemple :
+# eventhub:
+#   rabbitmq:
+#     exchange: booking.events
+#     routing-key:
+#       requested: booking.requested
+#       confirmed: booking.confirmed
+#       cancelled: booking.cancelled
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

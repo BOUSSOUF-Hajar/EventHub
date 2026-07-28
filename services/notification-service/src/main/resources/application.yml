@@ -1,0 +1,22 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: notification-service
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+  mail:
+    host: localhost
+    port: 1025 # Mailhog en dev, remplacer par un vrai SMTP en prod
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

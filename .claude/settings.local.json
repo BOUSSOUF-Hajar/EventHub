@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker compose:*)",
+      "Bash(mvn clean:*)",
+      "Bash(curl -s http://localhost:8082/actuator/health)"
+    ]
+  }
+}
