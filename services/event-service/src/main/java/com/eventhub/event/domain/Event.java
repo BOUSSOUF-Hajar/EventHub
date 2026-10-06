@@ -5,7 +5,6 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-
 import org.hibernate.annotations.ColumnDefault;
 
 import java.math.BigDecimal;
@@ -44,13 +43,16 @@ public class Event {
 
     // Prix d'une place. Le Booking Service s'en sert pour calculer le montant d'une
     // reservation, montant transmis ensuite au Payment Service.
-    // Le DEFAULT 0 en base (@ColumnDefault) permet a ddl-auto=update d'ajouter la colonne NOT NULL
-    // sur une table events deja peuplee.
+    // Obligatoire et strictement positif a la creation : un prix oublie ne doit pas
+    // devenir une reservation gratuite.
+    // Le DEFAULT 0 en base (@ColumnDefault) ne sert qu'a ddl-auto=update, pour ajouter la
+    // colonne NOT NULL sur une table deja peuplee : ces anciennes lignes a 0 signifient
+    // "prix non renseigne" et le Booking Service refuse de les reserver.
     @NotNull
-    @DecimalMin("0.0")
+    @DecimalMin(value = "0.0", inclusive = false)
     @ColumnDefault("0")
     @Column(nullable = false, precision = 12, scale = 2)
-    private BigDecimal unitPrice = BigDecimal.ZERO;
+    private BigDecimal unitPrice;
 
     protected Event() {
         // requis par JPA
@@ -64,7 +66,7 @@ public class Event {
         this.startsAt = startsAt;
         this.totalCapacity = totalCapacity;
         this.remainingSeats = totalCapacity;
-        this.unitPrice = unitPrice == null ? BigDecimal.ZERO : unitPrice;
+        this.unitPrice = unitPrice;
     }
 
     public UUID getId() {

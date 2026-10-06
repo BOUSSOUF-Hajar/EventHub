@@ -32,7 +32,7 @@ Corps attendu par `POST /api/events` :
 }
 ```
 
-`title`, `venue`, `startsAt`, `totalCapacity` et `remainingSeats` sont obligatoires (400 sinon). `unitPrice` (prix d'une place, utilisé par booking-service pour calculer le montant) vaut 0 s'il est omis.
+`title`, `venue`, `startsAt`, `totalCapacity`, `remainingSeats` et `unitPrice` sont obligatoires (400 sinon). `unitPrice` est le prix d'une place, strictement positif ; booking-service s'en sert pour calculer le montant d'une réservation.
 
 ## Sécurité
 

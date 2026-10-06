@@ -18,6 +18,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
 
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -163,7 +165,7 @@ class BookingServiceIntegrationTest extends AbstractIntegrationTest {
     private UUID givenEventWithCapacity(int capacity) {
         UUID eventId = UUID.randomUUID();
         given(eventCatalogClient.findById(any(UUID.class)))
-                .willReturn(new EventSummary(eventId, capacity, UNIT_PRICE));
+                .willReturn(new EventSummary(eventId, capacity, UNIT_PRICE, Instant.now().plus(Duration.ofDays(30))));
         return eventId;
     }
 

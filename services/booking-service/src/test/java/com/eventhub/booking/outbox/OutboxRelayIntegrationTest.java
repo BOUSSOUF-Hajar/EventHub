@@ -27,6 +27,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -85,7 +87,8 @@ class OutboxRelayIntegrationTest extends AbstractIntegrationTest {
         rabbitAdmin.purgeQueue(TEST_QUEUE, false);
 
         given(eventCatalogClient.findById(any(UUID.class)))
-                .willReturn(new EventSummary(UUID.randomUUID(), 50, new BigDecimal("25.00")));
+                .willReturn(new EventSummary(UUID.randomUUID(), 50, new BigDecimal("25.00"),
+                        Instant.now().plus(Duration.ofDays(30))));
     }
 
     @Test

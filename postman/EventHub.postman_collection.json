@@ -213,7 +213,7 @@
               }
             },
             "url": "{{eventUrl}}/api/events",
-            "description": "Reserve aux roles ORGANIZER ou ADMIN. `title`, `venue`, `startsAt`, `totalCapacity` et `remainingSeats` sont obligatoires. Stocke l'id cree dans `eventId`."
+            "description": "Reserve aux roles ORGANIZER ou ADMIN. `title`, `venue`, `startsAt`, `totalCapacity`, `remainingSeats` et `unitPrice` (> 0) sont obligatoires. Stocke l'id cree dans `eventId`."
           }
         },
         {
@@ -249,7 +249,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Evenement interdit\",\n  \"venue\": \"Nulle part\",\n  \"startsAt\": \"2027-01-15T20:00:00Z\",\n  \"totalCapacity\": 10,\n  \"remainingSeats\": 10\n}",
+              "raw": "{\n  \"title\": \"Evenement interdit\",\n  \"venue\": \"Nulle part\",\n  \"startsAt\": \"2027-01-15T20:00:00Z\",\n  \"totalCapacity\": 10,\n  \"remainingSeats\": 10,\n  \"unitPrice\": 10.0\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -332,7 +332,7 @@
               }
             },
             "url": "{{bookingUrl}}/api/bookings",
-            "description": "BKG-1. Cree une reservation PENDING (1 a 10 places) ; elle passe en AWAITING_PAYMENT une fois booking.requested publie. Le client vient du JWT. 409 s'il ne reste pas assez de places, 404 si l'evenement est inconnu, 503 si event-service ou Redis est indisponible. Stocke l'id dans `bookingId`."
+            "description": "BKG-1. Cree une reservation PENDING (1 a 10 places) ; elle passe en AWAITING_PAYMENT une fois booking.requested publie. Le client vient du JWT. 409 s'il ne reste pas assez de places, si l'evenement a deja commence ou si son prix n'est pas renseigne, 404 si l'evenement est inconnu, 503 si event-service ou Redis est indisponible. Stocke l'id dans `bookingId`."
           },
           "event": [
             {
@@ -525,7 +525,7 @@
               }
             },
             "url": "{{gatewayUrl}}/api/bookings",
-            "description": "BKG-1. Cree une reservation PENDING (1 a 10 places) ; elle passe en AWAITING_PAYMENT une fois booking.requested publie. Le client vient du JWT. 409 s'il ne reste pas assez de places, 404 si l'evenement est inconnu, 503 si event-service ou Redis est indisponible. Stocke l'id dans `bookingId`."
+            "description": "BKG-1. Cree une reservation PENDING (1 a 10 places) ; elle passe en AWAITING_PAYMENT une fois booking.requested publie. Le client vient du JWT. 409 s'il ne reste pas assez de places, si l'evenement a deja commence ou si son prix n'est pas renseigne, 404 si l'evenement est inconnu, 503 si event-service ou Redis est indisponible. Stocke l'id dans `bookingId`."
           },
           "event": [
             {

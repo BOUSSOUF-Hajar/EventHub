@@ -56,6 +56,16 @@ class EventControllerIntegrationTest {
             }
             """;
 
+    private static final String EVENT_WITHOUT_PRICE = """
+            {
+              "title": "Concert Jazz",
+              "venue": "Rabat",
+              "startsAt": "2027-01-15T20:00:00Z",
+              "totalCapacity": 200,
+              "remainingSeats": 200
+            }
+            """;
+
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
 
@@ -149,6 +159,28 @@ class EventControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"title\": \"\", \"venue\": \"Rabat\"}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createWithoutUnitPriceReturns400() throws Exception {
+        mockMvc.perform(post("/api/events")
+                        .header("Authorization", "Bearer " + ORGANIZER_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(EVENT_WITHOUT_PRICE))
+                .andExpect(status().isBadRequest());
+
+        assertThat(eventRepository.count()).isZero();
+    }
+
+    @Test
+    void createWithZeroUnitPriceReturns400() throws Exception {
+        mockMvc.perform(post("/api/events")
+                        .header("Authorization", "Bearer " + ORGANIZER_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_EVENT.replace("35.00", "0")))
+                .andExpect(status().isBadRequest());
+
+        assertThat(eventRepository.count()).isZero();
     }
 
     // EVT-4

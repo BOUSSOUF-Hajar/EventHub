@@ -4,7 +4,7 @@ import com.eventhub.booking.web.error.EventCatalogUnavailableException;
 import com.eventhub.booking.web.error.EventNotFoundException;
 import org.springframework.boot.web.client.ClientHttpRequestFactories;
 import org.springframework.boot.web.client.ClientHttpRequestFactorySettings;
-import org.springframework.http.HttpStatusCode;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -43,7 +43,10 @@ public class EventCatalogClient {
             EventSummary summary = restClient.get()
                     .uri("/api/events/{id}", eventId)
                     .retrieve()
-                    .onStatus(HttpStatusCode::is4xxClientError,
+                    // Seul 404 veut dire "evenement absent". Les autres erreurs (401, 403, 429...)
+                    // remontent en RestClientException, donc en 503 : c'est la dependance qui
+                    // est en faute, et repondre "introuvable" masquerait l'incident.
+                    .onStatus(status -> status.value() == HttpStatus.NOT_FOUND.value(),
                             (request, response) -> { throw new EventNotFoundException(eventId); })
                     .body(EventSummary.class);
 
@@ -53,9 +56,9 @@ public class EventCatalogClient {
             // Un prix absent n'est pas un prix nul : facturer 0 EUR serait pire que refuser.
             // Ce cas signale un event-service d'une version anterieure, donc une dependance
             // incompatible -> 503 plutot qu'une reservation gratuite silencieuse.
-            if (summary.unitPrice() == null) {
+            if (summary.unitPrice() == null || summary.startsAt() == null) {
                 throw new EventCatalogUnavailableException(eventId,
-                        new IllegalStateException("prix unitaire absent de la reponse d'event-service"));
+                        new IllegalStateException("prix unitaire ou date absent de la reponse d'event-service"));
             }
             return summary;
         } catch (EventNotFoundException | EventCatalogUnavailableException e) {

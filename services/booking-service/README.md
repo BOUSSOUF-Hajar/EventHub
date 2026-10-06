@@ -25,7 +25,7 @@ Codes de retour notables :
 | `401` | Jeton absent, ou `sub` qui n'est pas un UUID Keycloak |
 | `403` | Jeton valide sans le rôle `CUSTOMER` |
 | `404` | Événement inconnu du catalogue |
-| `409` | Plus assez de places |
+| `409` | Plus assez de places, événement déjà commencé ou prix non renseigné |
 | `503` | event-service ou Redis injoignable |
 
 L'identité du client vient **toujours** du JWT (`sub`, `email`), jamais du corps de la

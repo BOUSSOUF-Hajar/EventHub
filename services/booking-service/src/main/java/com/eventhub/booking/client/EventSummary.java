@@ -1,6 +1,7 @@
 package com.eventhub.booking.client;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -11,7 +12,7 @@ import java.util.UUID;
  * La validation des champs obligatoires est faite par {@link EventCatalogClient} :
  * ce record ne fait aucune correction silencieuse (un prix absent ne devient pas zero).
  */
-public record EventSummary(UUID id, Integer totalCapacity, BigDecimal unitPrice) {
+public record EventSummary(UUID id, Integer totalCapacity, BigDecimal unitPrice, Instant startsAt) {
 
     public BigDecimal priceFor(int seatCount) {
         return unitPrice.multiply(BigDecimal.valueOf(seatCount));

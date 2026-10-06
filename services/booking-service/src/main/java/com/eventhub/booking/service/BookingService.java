@@ -8,6 +8,7 @@ import com.eventhub.booking.domain.BookingStatus;
 import com.eventhub.booking.event.BookingRequestedEvent;
 import com.eventhub.booking.repository.BookingRepository;
 import com.eventhub.booking.web.error.BookingNotFoundException;
+import com.eventhub.booking.web.error.EventNotBookableException;
 import com.eventhub.booking.web.error.NotEnoughSeatsException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,8 +16,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 public class BookingService {
@@ -57,16 +60,21 @@ public class BookingService {
      *   <li>persistance de la reservation + ligne d'outbox dans une seule transaction.</li>
      * </ol>
      *
-     * Si l'etape 3 echoue (y compris au commit), les places verrouillees a l'etape 2
-     * sont rendues : sans ce rattrapage, un echec base gelerait des places pour toujours.
+     * Si l'etape 3 echoue, les places verrouillees a l'etape 2 sont rendues : sans ce
+     * rattrapage, un echec base gelerait des places pour toujours. Voir
+     * {@link #recoverOrRelease} pour le cas d'un commit a l'issue incertaine.
      */
     public Booking create(UUID eventId, int seatCount, AuthenticatedCustomer customer) {
         EventSummary event = eventCatalogClient.findById(eventId);
+        requireBookable(event, eventId);
 
         if (!seatLockService.tryLock(eventId, seatCount, event.totalCapacity())) {
             throw new NotEnoughSeatsException(eventId, seatCount);
         }
 
+        // Renseigne a la fin du callback : s'il est rempli quand une exception remonte,
+        // c'est que l'echec vient du commit et non du code metier.
+        AtomicReference<Booking> persisted = new AtomicReference<>();
         try {
             return transactionTemplate.execute(status -> {
                 Booking booking = bookingRepository.save(new Booking(
@@ -84,14 +92,60 @@ public class BookingService {
 
                 log.info("Reservation {} creee ({} place(s), evenement {})",
                         booking.getId(), seatCount, eventId);
+                persisted.set(booking);
                 return booking;
             });
         } catch (RuntimeException e) {
+            return recoverOrRelease(persisted.get(), eventId, seatCount, e);
+        }
+    }
+
+    /** Un evenement passe ou sans prix renseigne ne se reserve pas : on refuse avant de verrouiller. */
+    private void requireBookable(EventSummary event, UUID eventId) {
+        if (!event.startsAt().isAfter(Instant.now())) {
+            throw new EventNotBookableException(eventId, "il a deja commence");
+        }
+        if (event.unitPrice().signum() <= 0) {
+            throw new EventNotBookableException(eventId, "son prix n'est pas renseigne");
+        }
+    }
+
+    /**
+     * Decide du sort des places apres un echec de la transaction.
+     *
+     * Un echec au commit ne dit pas si la base a valide ou non (connexion coupee apres
+     * l'envoi du COMMIT) : on relit donc la reservation. Si elle existe, elle est valide
+     * et garde ses places. Si on ne peut pas le savoir, on garde aussi les places :
+     * des places bloquees a tort se corrigent, une sur-reservation non.
+     */
+    private Booking recoverOrRelease(Booking persisted, UUID eventId, int seatCount, RuntimeException failure) {
+        if (persisted != null) {
+            boolean committed;
+            try {
+                committed = bookingRepository.existsById(persisted.getId());
+            } catch (RuntimeException checkFailure) {
+                failure.addSuppressed(checkFailure);
+                log.error("Issue du commit inconnue pour la reservation {} (evenement {}) : "
+                        + "{} place(s) conservee(s), a reconcilier", persisted.getId(), eventId, seatCount, failure);
+                throw failure;
+            }
+            if (committed) {
+                log.warn("Reservation {} validee malgre une erreur au commit", persisted.getId(), failure);
+                return persisted;
+            }
+        }
+
+        try {
             seatLockService.release(eventId, seatCount);
             log.warn("Echec de la creation de reservation pour l'evenement {} : {} place(s) rendue(s)",
-                    eventId, seatCount, e);
-            throw e;
+                    eventId, seatCount, failure);
+        } catch (RuntimeException releaseFailure) {
+            // L'erreur d'origine reste celle que voit l'appelant.
+            failure.addSuppressed(releaseFailure);
+            log.error("Echec de la creation de reservation pour l'evenement {} ET de la liberation "
+                    + "de {} place(s) : compteur Redis a reconcilier", eventId, seatCount, failure);
         }
+        throw failure;
     }
 
     @Transactional(readOnly = true)
