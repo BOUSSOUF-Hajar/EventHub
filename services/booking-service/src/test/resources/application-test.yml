@@ -1,0 +1,33 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+  rabbitmq:
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+
+eventhub:
+  event-service:
+    base-url: http://localhost:0   # jamais appele : EventCatalogClient est mocke dans les tests
+  rabbitmq:
+    exchange: booking.events
+    routing-key:
+      requested: booking.requested
+      confirmed: booking.confirmed
+      cancelled: booking.cancelled
+  outbox:
+    # Le relais est pilote explicitement par les tests qui le concernent : un
+    # declenchement periodique rendrait les assertions non deterministes.
+    initial-delay-ms: 86400000
+    poll-interval-ms: 86400000
+    batch-size: 100
+    confirm-timeout-ms: 5000
+
+logging:
+  level:
+    org.testcontainers: WARN
+    com.github.dockerjava: WARN

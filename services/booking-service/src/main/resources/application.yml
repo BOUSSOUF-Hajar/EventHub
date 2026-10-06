@@ -14,6 +14,7 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+    open-in-view: false   # evite de garder une session ouverte pendant le rendu de la reponse
 
   data:
     redis:
@@ -25,6 +26,17 @@ spring:
     port: 5672
     username: guest
     password: guest
+    # Indispensable au relais d'outbox : sans confirmation du broker, on marquerait
+    # comme publies des evenements qui ne sont jamais arrives. Le mode "correlated"
+    # rattache la confirmation a un message precis, ce qui permet de traiter un lot
+    # sans confondre le sort de deux evenements.
+    publisher-confirm-type: correlated
+    # Complement du precedent : un ACK ne prouve que la reception par l'exchange.
+    # Les retours signalent les messages qu'aucune queue n'a acceptes.
+    publisher-returns: true
+    template:
+      # Sans "mandatory", un message sans queue destinataire est jete en silence.
+      mandatory: true
 
   security:
     oauth2:
@@ -32,15 +44,20 @@ spring:
         jwt:
           issuer-uri: http://localhost:8081/realms/eventhub
 
-# TODO: definir ici les noms d'exchange/queue partages avec payment-service
-# et notification-service, par exemple :
-# eventhub:
-#   rabbitmq:
-#     exchange: booking.events
-#     routing-key:
-#       requested: booking.requested
-#       confirmed: booking.confirmed
-#       cancelled: booking.cancelled
+# Contrat de messagerie partage avec payment-service et notification-service
+eventhub:
+  event-service:
+    base-url: http://localhost:8082
+  rabbitmq:
+    exchange: booking.events
+    routing-key:
+      requested: booking.requested
+      confirmed: booking.confirmed
+      cancelled: booking.cancelled
+  outbox:
+    poll-interval-ms: 1000
+    batch-size: 100
+    confirm-timeout-ms: 5000
 
 management:
   endpoints:

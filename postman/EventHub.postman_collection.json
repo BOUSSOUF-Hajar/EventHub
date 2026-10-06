@@ -5,16 +5,50 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "keycloakUrl", "value": "http://localhost:8081" },
-    { "key": "realm", "value": "eventhub" },
-    { "key": "clientId", "value": "eventhub-frontend" },
-    { "key": "gatewayUrl", "value": "http://localhost:8080" },
-    { "key": "eventUrl", "value": "http://localhost:8082" },
-    { "key": "bookingUrl", "value": "http://localhost:8083" },
-    { "key": "paymentUrl", "value": "http://localhost:8084" },
-    { "key": "customerToken", "value": "" },
-    { "key": "organizerToken", "value": "" },
-    { "key": "eventId", "value": "" }
+    {
+      "key": "keycloakUrl",
+      "value": "http://localhost:8081"
+    },
+    {
+      "key": "realm",
+      "value": "eventhub"
+    },
+    {
+      "key": "clientId",
+      "value": "eventhub-frontend"
+    },
+    {
+      "key": "gatewayUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "eventUrl",
+      "value": "http://localhost:8082"
+    },
+    {
+      "key": "bookingUrl",
+      "value": "http://localhost:8083"
+    },
+    {
+      "key": "paymentUrl",
+      "value": "http://localhost:8084"
+    },
+    {
+      "key": "customerToken",
+      "value": ""
+    },
+    {
+      "key": "organizerToken",
+      "value": ""
+    },
+    {
+      "key": "eventId",
+      "value": ""
+    },
+    {
+      "key": "bookingId",
+      "value": ""
+    }
   ],
   "item": [
     {
@@ -40,10 +74,22 @@
             "body": {
               "mode": "urlencoded",
               "urlencoded": [
-                { "key": "grant_type", "value": "password" },
-                { "key": "client_id", "value": "{{clientId}}" },
-                { "key": "username", "value": "alice.customer" },
-                { "key": "password", "value": "password" }
+                {
+                  "key": "grant_type",
+                  "value": "password"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{clientId}}"
+                },
+                {
+                  "key": "username",
+                  "value": "alice.customer"
+                },
+                {
+                  "key": "password",
+                  "value": "password"
+                }
               ]
             },
             "url": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token",
@@ -70,10 +116,22 @@
             "body": {
               "mode": "urlencoded",
               "urlencoded": [
-                { "key": "grant_type", "value": "password" },
-                { "key": "client_id", "value": "{{clientId}}" },
-                { "key": "username", "value": "bob.organizer" },
-                { "key": "password", "value": "password" }
+                {
+                  "key": "grant_type",
+                  "value": "password"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{clientId}}"
+                },
+                {
+                  "key": "username",
+                  "value": "bob.organizer"
+                },
+                {
+                  "key": "password",
+                  "value": "password"
+                }
               ]
             },
             "url": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token",
@@ -130,14 +188,29 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{organizerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Concert Jazz\",\n  \"description\": \"Soiree jazz en plein air\",\n  \"venue\": \"Theatre Mohammed V, Rabat\",\n  \"startsAt\": \"2027-01-15T20:00:00Z\",\n  \"totalCapacity\": 200,\n  \"remainingSeats\": 200\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"title\": \"Concert Jazz\",\n  \"description\": \"Soiree jazz en plein air\",\n  \"venue\": \"Theatre Mohammed V, Rabat\",\n  \"startsAt\": \"2027-01-15T20:00:00Z\",\n  \"totalCapacity\": 200,\n  \"remainingSeats\": 200,\n  \"unitPrice\": 35.0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": "{{eventUrl}}/api/events",
             "description": "Reserve aux roles ORGANIZER ou ADMIN. `title`, `venue`, `startsAt`, `totalCapacity` et `remainingSeats` sont obligatoires. Stocke l'id cree dans `eventId`."
@@ -150,21 +223,38 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test('403 Forbidden', () => pm.response.to.have.status(403));"]
+                "exec": [
+                  "pm.test('403 Forbidden', () => pm.response.to.have.status(403));"
+                ]
               }
             }
           ],
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{customerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"title\": \"Evenement interdit\",\n  \"venue\": \"Nulle part\",\n  \"startsAt\": \"2027-01-15T20:00:00Z\",\n  \"totalCapacity\": 10,\n  \"remainingSeats\": 10\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": "{{eventUrl}}/api/events",
             "description": "Verifie la regle EVT-3 : un CUSTOMER ne peut pas creer d'evenement."
@@ -175,7 +265,13 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{organizerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "DELETE",
             "header": [],
@@ -200,45 +296,95 @@
         {
           "name": "Health",
           "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{customerToken}}", "type": "string" }]
-            },
             "method": "GET",
             "header": [],
             "url": "{{bookingUrl}}/actuator/health",
-            "description": "Le service n'a pas de SecurityConfig : tout exige un JWT, y compris le health (401 sans token)."
+            "description": "Public."
           }
         },
         {
-          "name": "[A IMPLEMENTER] Creer une reservation",
+          "name": "Creer une reservation (CUSTOMER/ADMIN)",
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{customerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"eventId\": \"{{eventId}}\",\n  \"seatCount\": 2\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": "{{bookingUrl}}/api/bookings",
-            "description": "Prevu par le cahier des charges (BKG-1) mais pas encore code : le controller n'existe pas. Le corps est une proposition basee sur l'entite Booking (customerId vient du JWT) ; a ajuster quand BookingRequest sera ecrit."
-          }
+            "description": "BKG-1. Cree une reservation PENDING (1 a 10 places) ; elle passe en AWAITING_PAYMENT une fois booking.requested publie. Le client vient du JWT. 409 s'il ne reste pas assez de places, 404 si l'evenement est inconnu, 503 si event-service ou Redis est indisponible. Stocke l'id dans `bookingId`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "    pm.collectionVariables.set('bookingId', pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
-          "name": "[A IMPLEMENTER] Mes reservations",
+          "name": "Mes reservations",
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{customerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "GET",
             "header": [],
             "url": "{{bookingUrl}}/api/bookings/me",
-            "description": "Prevu par le cahier des charges (BKG-6) mais pas encore code."
+            "description": "BKG-6. Reservations du client du JWT, les plus recentes d'abord."
+          }
+        },
+        {
+          "name": "Detail d'une de mes reservations",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{bookingUrl}}/api/bookings/{{bookingId}}",
+            "description": "404 si la reservation n'existe pas ou appartient a un autre client."
           }
         }
       ]
@@ -304,14 +450,29 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{organizerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Conference DevOps\",\n  \"description\": \"Une journee de talks\",\n  \"venue\": \"Technopark, Casablanca\",\n  \"startsAt\": \"2027-03-10T09:00:00Z\",\n  \"totalCapacity\": 300,\n  \"remainingSeats\": 300\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"title\": \"Conference DevOps\",\n  \"description\": \"Une journee de talks\",\n  \"venue\": \"Technopark, Casablanca\",\n  \"startsAt\": \"2027-03-10T09:00:00Z\",\n  \"totalCapacity\": 300,\n  \"remainingSeats\": 300,\n  \"unitPrice\": 35.0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": "{{gatewayUrl}}/api/events"
           }
@@ -321,7 +482,13 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{organizerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{organizerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "DELETE",
             "header": [],
@@ -329,34 +496,88 @@
           }
         },
         {
-          "name": "[A IMPLEMENTER] Creer une reservation",
+          "name": "Creer une reservation (CUSTOMER/ADMIN)",
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{customerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"eventId\": \"{{eventId}}\",\n  \"seatCount\": 2\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": "{{gatewayUrl}}/api/bookings",
-            "description": "Route Gateway existante, mais l'endpoint booking-service n'est pas encore code."
-          }
+            "description": "BKG-1. Cree une reservation PENDING (1 a 10 places) ; elle passe en AWAITING_PAYMENT une fois booking.requested publie. Le client vient du JWT. 409 s'il ne reste pas assez de places, 404 si l'evenement est inconnu, 503 si event-service ou Redis est indisponible. Stocke l'id dans `bookingId`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "    pm.collectionVariables.set('bookingId', pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
-          "name": "[A IMPLEMENTER] Mes reservations",
+          "name": "Mes reservations",
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{customerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "GET",
             "header": [],
             "url": "{{gatewayUrl}}/api/bookings/me",
-            "description": "Route Gateway existante, mais l'endpoint booking-service n'est pas encore code."
+            "description": "BKG-6. Reservations du client du JWT, les plus recentes d'abord."
+          }
+        },
+        {
+          "name": "Detail d'une de mes reservations",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{gatewayUrl}}/api/bookings/{{bookingId}}",
+            "description": "404 si la reservation n'existe pas ou appartient a un autre client."
           }
         }
       ]
