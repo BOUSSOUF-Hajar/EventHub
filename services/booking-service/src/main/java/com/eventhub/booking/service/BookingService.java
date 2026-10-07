@@ -4,7 +4,6 @@ import com.eventhub.booking.client.EventCatalogClient;
 import com.eventhub.booking.client.EventSummary;
 import com.eventhub.booking.config.EventHubRabbitProperties;
 import com.eventhub.booking.domain.Booking;
-import com.eventhub.booking.domain.BookingStatus;
 import com.eventhub.booking.event.BookingRequestedEvent;
 import com.eventhub.booking.repository.BookingRepository;
 import com.eventhub.booking.web.error.BookingNotFoundException;
@@ -168,13 +167,10 @@ public class BookingService {
     /**
      * Appele par le relais d'outbox une fois "booking.requested" reellement publie :
      * tant que le message n'est pas parti, la reservation n'attend pas encore de paiement.
+     * Sans effet si le resultat du paiement est deja arrive entre-temps.
      */
     @Transactional
     public void markAwaitingPayment(UUID bookingId) {
-        bookingRepository.findById(bookingId).ifPresent(booking -> {
-            if (booking.getStatus() == BookingStatus.PENDING) {
-                booking.transitionTo(BookingStatus.AWAITING_PAYMENT);
-            }
-        });
+        bookingRepository.markAwaitingPayment(bookingId, Instant.now());
     }
 }

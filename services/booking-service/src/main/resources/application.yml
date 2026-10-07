@@ -54,6 +54,16 @@ eventhub:
       requested: booking.requested
       confirmed: booking.confirmed
       cancelled: booking.cancelled
+    # Exchange de payment-service, dont booking-service consomme les resultats
+    payment:
+      exchange: payment.events
+      routing-key:
+        succeeded: payment.succeeded
+        failed: payment.failed
+  booking:
+    # BKG-3 : delai au-dela duquel une reservation impayee est annulee et ses places rendues
+    payment-timeout: 15m
+    expiration-poll-interval-ms: 60000
   outbox:
     poll-interval-ms: 1000
     batch-size: 100

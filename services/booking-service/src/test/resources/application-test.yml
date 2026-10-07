@@ -9,6 +9,13 @@ spring:
     publisher-returns: true
     template:
       mandatory: true
+    listener:
+      simple:
+        # Plusieurs contextes Spring coexistent dans la JVM de test (cache de contextes) et
+        # partagent le meme broker : si chacun demarrait son listener, un resultat de
+        # paiement pourrait etre consomme par un contexte autre que celui du test en cours.
+        # Seul SagaIntegrationTest reactive l'ecoute.
+        auto-startup: false
 
 eventhub:
   event-service:
@@ -19,6 +26,16 @@ eventhub:
       requested: booking.requested
       confirmed: booking.confirmed
       cancelled: booking.cancelled
+    payment:
+      exchange: payment.events
+      routing-key:
+        succeeded: payment.succeeded
+        failed: payment.failed
+  booking:
+    payment-timeout: 15m
+    # Comme le relais, le job d'expiration est appele explicitement par les tests.
+    expiration-initial-delay-ms: 86400000
+    expiration-poll-interval-ms: 86400000
   outbox:
     # Le relais est pilote explicitement par les tests qui le concernent : un
     # declenchement periodique rendrait les assertions non deterministes.

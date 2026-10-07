@@ -100,22 +100,22 @@ eventhub/
 ├── services/
 │   ├── gateway/                Spring Cloud Gateway + securite JWT
 │   ├── event-service/          catalogue d'evenements (CRUD fonctionnel)
-│   ├── booking-service/        squelette Saga reservation/paiement
-│   ├── payment-service/        squelette paiement mock
-│   └── notification-service/   listener RabbitMQ -> email (Mailhog)
+│   ├── booking-service/        reservations, verrou Redis, outbox, orchestration de la Saga
+│   ├── payment-service/        paiement simule idempotent, outbox
+│   └── notification-service/   squelette : listener RabbitMQ -> email (Mailhog)
 └── frontend/                   React + Vite + TypeScript
 ```
 
-`event-service` est le seul service entierement fonctionnel pour le moment (CRUD + securite) : c'est le point de depart pour comprendre le pattern, avant de completer les autres. Les autres services sont des squelettes compilables avec des `TODO` explicites a l'endroit ou la logique doit etre ajoutee.
+`event-service`, `booking-service` et `payment-service` sont fonctionnels et documentes dans leur propre `README.md`. `notification-service` et le frontend sont encore des squelettes compilables, avec des `TODO` explicites a l'endroit ou la logique doit etre ajoutee.
 
 ## Roadmap
 
 - [x] Infrastructure Docker Compose (Postgres x3, RabbitMQ, Keycloak, Redis, Mailhog)
 - [x] Gateway avec validation JWT
 - [x] Service Evenements (CRUD + sécurité par rôle)
-- [ ] Service Réservations : verrou Redis + table outbox
-- [ ] Service Paiements : mock + idempotence
-- [ ] Saga orchestrée Réservation → Paiement → Confirmation (+ compensation)
+- [x] Service Réservations : verrou Redis + table outbox
+- [x] Service Paiements : mock + idempotence
+- [x] Saga orchestrée Réservation → Paiement → Confirmation (+ compensation)
 - [ ] Service Notifications : email de confirmation/échec
 - [ ] Frontend : parcours de réservation complet, dashboard organisateur
 - [ ] Tests d'intégration Testcontainers sur chaque service
