@@ -14,12 +14,39 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+    open-in-view: false
 
   rabbitmq:
     host: localhost
     port: 5672
     username: guest
     password: guest
+    # Memes garanties que le relais d'outbox de booking-service : un resultat de paiement
+    # n'est marque publie que si le broker l'a confirme ET route vers une queue.
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+
+# PAY-4 : part des paiements refuses par le PSP simule, entre 0.0 (jamais) et 1.0 (toujours).
+# Mettre 1.0 pour demontrer le chemin de compensation de la Saga.
+payment:
+  failure-rate: 0.0
+
+# Contrat de messagerie partage avec booking-service
+eventhub:
+  rabbitmq:
+    exchange: payment.events
+    routing-key:
+      succeeded: payment.succeeded
+      failed: payment.failed
+    booking:
+      exchange: booking.events
+      requested-routing-key: booking.requested
+  outbox:
+    poll-interval-ms: 1000
+    batch-size: 100
+    confirm-timeout-ms: 5000
 
 management:
   endpoints:
