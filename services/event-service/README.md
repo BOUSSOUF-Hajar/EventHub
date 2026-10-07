@@ -27,11 +27,12 @@ Corps attendu par `POST /api/events` :
   "venue": "Théâtre Mohammed V, Rabat",
   "startsAt": "2027-01-15T20:00:00Z",
   "totalCapacity": 200,
-  "remainingSeats": 200
+  "remainingSeats": 200,
+  "unitPrice": 35.00
 }
 ```
 
-`title`, `venue`, `startsAt`, `totalCapacity` et `remainingSeats` sont obligatoires (400 sinon).
+`title`, `venue`, `startsAt`, `totalCapacity`, `remainingSeats` et `unitPrice` sont obligatoires (400 sinon). `unitPrice` est le prix d'une place, strictement positif ; booking-service s'en sert pour calculer le montant d'une réservation.
 
 ## Sécurité
 

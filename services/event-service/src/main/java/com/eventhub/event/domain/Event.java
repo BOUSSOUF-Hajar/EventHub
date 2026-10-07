@@ -1,10 +1,13 @@
 package com.eventhub.event.domain;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import org.hibernate.annotations.ColumnDefault;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -38,17 +41,32 @@ public class Event {
     @Min(0)
     private Integer remainingSeats;
 
+    // Prix d'une place. Le Booking Service s'en sert pour calculer le montant d'une
+    // reservation, montant transmis ensuite au Payment Service.
+    // Obligatoire et strictement positif a la creation : un prix oublie ne doit pas
+    // devenir une reservation gratuite.
+    // Le DEFAULT 0 en base (@ColumnDefault) ne sert qu'a ddl-auto=update, pour ajouter la
+    // colonne NOT NULL sur une table deja peuplee : ces anciennes lignes a 0 signifient
+    // "prix non renseigne" et le Booking Service refuse de les reserver.
+    @NotNull
+    @DecimalMin(value = "0.0", inclusive = false)
+    @ColumnDefault("0")
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal unitPrice;
+
     protected Event() {
         // requis par JPA
     }
 
-    public Event(String title, String description, String venue, Instant startsAt, Integer totalCapacity) {
+    public Event(String title, String description, String venue, Instant startsAt,
+                 Integer totalCapacity, BigDecimal unitPrice) {
         this.title = title;
         this.description = description;
         this.venue = venue;
         this.startsAt = startsAt;
         this.totalCapacity = totalCapacity;
         this.remainingSeats = totalCapacity;
+        this.unitPrice = unitPrice;
     }
 
     public UUID getId() {
@@ -101,5 +119,13 @@ public class Event {
 
     public void setRemainingSeats(Integer remainingSeats) {
         this.remainingSeats = remainingSeats;
+    }
+
+    public BigDecimal getUnitPrice() {
+        return unitPrice;
+    }
+
+    public void setUnitPrice(BigDecimal unitPrice) {
+        this.unitPrice = unitPrice;
     }
 }

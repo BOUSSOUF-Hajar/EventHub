@@ -18,6 +18,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +48,17 @@ class EventControllerIntegrationTest {
             {
               "title": "Concert Jazz",
               "description": "Soiree jazz",
+              "venue": "Rabat",
+              "startsAt": "2027-01-15T20:00:00Z",
+              "totalCapacity": 200,
+              "remainingSeats": 200,
+              "unitPrice": 35.00
+            }
+            """;
+
+    private static final String EVENT_WITHOUT_PRICE = """
+            {
+              "title": "Concert Jazz",
               "venue": "Rabat",
               "startsAt": "2027-01-15T20:00:00Z",
               "totalCapacity": 200,
@@ -100,7 +112,8 @@ class EventControllerIntegrationTest {
                 .andExpect(jsonPath("$.title").value("Concert Rock"))
                 .andExpect(jsonPath("$.venue").value("Casablanca"))
                 .andExpect(jsonPath("$.startsAt").value("2027-06-01T19:00:00Z"))
-                .andExpect(jsonPath("$.remainingSeats").value(500));
+                .andExpect(jsonPath("$.remainingSeats").value(500))
+                .andExpect(jsonPath("$.unitPrice").value(49.90));
     }
 
     @Test
@@ -133,7 +146,8 @@ class EventControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON).content(VALID_EVENT))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").isNotEmpty())
-                .andExpect(jsonPath("$.title").value("Concert Jazz"));
+                .andExpect(jsonPath("$.title").value("Concert Jazz"))
+                .andExpect(jsonPath("$.unitPrice").value(35.00));
 
         assertThat(eventRepository.count()).isEqualTo(1);
     }
@@ -145,6 +159,28 @@ class EventControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"title\": \"\", \"venue\": \"Rabat\"}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createWithoutUnitPriceReturns400() throws Exception {
+        mockMvc.perform(post("/api/events")
+                        .header("Authorization", "Bearer " + ORGANIZER_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(EVENT_WITHOUT_PRICE))
+                .andExpect(status().isBadRequest());
+
+        assertThat(eventRepository.count()).isZero();
+    }
+
+    @Test
+    void createWithZeroUnitPriceReturns400() throws Exception {
+        mockMvc.perform(post("/api/events")
+                        .header("Authorization", "Bearer " + ORGANIZER_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_EVENT.replace("35.00", "0")))
+                .andExpect(status().isBadRequest());
+
+        assertThat(eventRepository.count()).isZero();
     }
 
     // EVT-4
@@ -178,7 +214,7 @@ class EventControllerIntegrationTest {
 
     private Event savedEvent() {
         return eventRepository.save(new Event("Concert Rock", "Groupes locaux", "Casablanca",
-                Instant.parse("2027-06-01T19:00:00Z"), 500));
+                Instant.parse("2027-06-01T19:00:00Z"), 500, new BigDecimal("49.90")));
     }
 
     private static Jwt jwtWithRole(String tokenValue, String role) {
