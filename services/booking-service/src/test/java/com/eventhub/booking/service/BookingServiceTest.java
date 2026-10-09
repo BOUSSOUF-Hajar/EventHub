@@ -67,7 +67,9 @@ class BookingServiceTest {
     void setUp() {
         EventHubRabbitProperties rabbitProperties = new EventHubRabbitProperties(
                 "booking.events",
-                new EventHubRabbitProperties.RoutingKeys("booking.requested", "booking.confirmed", "booking.cancelled"));
+                new EventHubRabbitProperties.RoutingKeys("booking.requested", "booking.confirmed", "booking.cancelled"),
+                new EventHubRabbitProperties.Payment("payment.events",
+                        new EventHubRabbitProperties.PaymentRoutingKeys("payment.succeeded", "payment.failed")));
 
         bookingService = new BookingService(bookingRepository, eventCatalogClient, seatLockService,
                 outboxWriter, transactionTemplate, rabbitProperties);

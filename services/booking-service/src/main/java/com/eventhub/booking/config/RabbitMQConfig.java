@@ -14,8 +14,15 @@ import org.springframework.context.annotation.Configuration;
 @EnableConfigurationProperties(EventHubRabbitProperties.class)
 public class RabbitMQConfig {
 
-    /** Queue consommee par payment-service (lot 3). */
+    /** Queue consommee par payment-service. */
     public static final String PAYMENT_BOOKING_REQUESTED_QUEUE = "payment.booking-requested.queue";
+
+    /** Queues consommees par notification-service (lot 4). */
+    public static final String NOTIFICATION_BOOKING_CONFIRMED_QUEUE = "notification.booking-confirmed.queue";
+    public static final String NOTIFICATION_BOOKING_CANCELLED_QUEUE = "notification.booking-cancelled.queue";
+
+    /** Queue d'entree de la Saga : les resultats de paiement publies par payment-service. */
+    public static final String BOOKING_PAYMENT_RESULT_QUEUE = "booking.payment-result.queue";
 
     /**
      * L'exchange est declare durable : les messages de l'outbox doivent survivre
@@ -49,5 +56,70 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(paymentBookingRequestedQueue)
                 .to(bookingExchange)
                 .with(properties.routingKey().requested());
+    }
+
+    /**
+     * Meme raison pour les queues de notification-service : sans elles, le relais d'outbox
+     * (flag mandatory) ne pourrait jamais marquer "booking.confirmed" comme publie. Tant que
+     * le lot 4 n'est pas livre, les evenements s'y accumulent au lieu d'etre perdus.
+     */
+    @Bean
+    public Queue notificationBookingConfirmedQueue() {
+        return QueueBuilder.durable(NOTIFICATION_BOOKING_CONFIRMED_QUEUE).build();
+    }
+
+    @Bean
+    public Binding notificationBookingConfirmedBinding(Queue notificationBookingConfirmedQueue,
+                                                       TopicExchange bookingExchange,
+                                                       EventHubRabbitProperties properties) {
+        return BindingBuilder.bind(notificationBookingConfirmedQueue)
+                .to(bookingExchange)
+                .with(properties.routingKey().confirmed());
+    }
+
+    @Bean
+    public Queue notificationBookingCancelledQueue() {
+        return QueueBuilder.durable(NOTIFICATION_BOOKING_CANCELLED_QUEUE).build();
+    }
+
+    @Bean
+    public Binding notificationBookingCancelledBinding(Queue notificationBookingCancelledQueue,
+                                                       TopicExchange bookingExchange,
+                                                       EventHubRabbitProperties properties) {
+        return BindingBuilder.bind(notificationBookingCancelledQueue)
+                .to(bookingExchange)
+                .with(properties.routingKey().cancelled());
+    }
+
+    /**
+     * Cote consommation, on redeclare a l'identique ce que payment-service declare deja
+     * pour son propre exchange : booking-service reste ainsi demarrable seul.
+     */
+    @Bean
+    public TopicExchange paymentExchange(EventHubRabbitProperties properties) {
+        return ExchangeBuilder.topicExchange(properties.payment().exchange()).durable(true).build();
+    }
+
+    @Bean
+    public Queue bookingPaymentResultQueue() {
+        return QueueBuilder.durable(BOOKING_PAYMENT_RESULT_QUEUE).build();
+    }
+
+    @Bean
+    public Binding paymentSucceededBinding(Queue bookingPaymentResultQueue,
+                                           TopicExchange paymentExchange,
+                                           EventHubRabbitProperties properties) {
+        return BindingBuilder.bind(bookingPaymentResultQueue)
+                .to(paymentExchange)
+                .with(properties.payment().routingKey().succeeded());
+    }
+
+    @Bean
+    public Binding paymentFailedBinding(Queue bookingPaymentResultQueue,
+                                        TopicExchange paymentExchange,
+                                        EventHubRabbitProperties properties) {
+        return BindingBuilder.bind(bookingPaymentResultQueue)
+                .to(paymentExchange)
+                .with(properties.payment().routingKey().failed());
     }
 }

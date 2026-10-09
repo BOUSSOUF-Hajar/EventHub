@@ -4,8 +4,8 @@ Service Réservations : il crée les réservations, garantit qu'on ne vend jamai
 places que la capacité, et sert d'**orchestrateur de la Saga** réservation → paiement →
 confirmation.
 
-État : **lot 2 terminé** (réservation, verrou, outbox). Le lot 3 y branchera l'écoute des
-événements de paiement.
+État : **lot 3 terminé** (réservation, verrou, outbox, Saga complète avec compensation et
+expiration).
 
 ## Endpoints
 
@@ -56,7 +56,7 @@ sur les dernières places.
 
 La clé n'a **pas** de TTL : un TTL sur le compteur agrégé ferait réapparaître d'un coup
 des places déjà confirmées. L'expiration des réservations impayées (BKG-3) se traite
-réservation par réservation, au lot 3.
+réservation par réservation, par un job dédié (voir [Saga](#saga-réservation--paiement)).
 
 > Limite connue : si Redis est purgé, le compteur doit être reconstruit depuis la base
 > (somme des places des réservations non annulées). Aucune reconstruction automatique
@@ -81,9 +81,76 @@ Un relais (`OutboxRelay`, `@Scheduled`) publie ensuite les lignes non publiées 
 Garantie résultante : **at least once**. Chaque payload porte un `messageId` qui sert de
 clé de déduplication aux consommateurs.
 
-## Contrat d'événement
+## Saga réservation → paiement
 
-Publié sur l'exchange `booking.events` (topic, durable), routing key `booking.requested` :
+booking-service orchestre ; payment-service ne connaît que son propre travail.
+
+```
+POST /api/bookings ─► PENDING ──(relais)──► booking.requested ─► payment-service
+                                                                       │
+                      ┌──────── payment.succeeded ◄────────────────────┤
+                      │                                                │
+                      ▼                                                ▼
+                  CONFIRMED                                     payment.failed
+              + booking.confirmed                                      │
+                                                                       ▼
+                                                                   CANCELLED
+                                                     + places rendues + booking.cancelled
+```
+
+`PaymentResultListener` écoute `booking.payment-result.queue` et délègue à `BookingSaga` :
+
+| Événement reçu | Effet | Événement émis |
+|---|---|---|
+| `payment.succeeded` | `CONFIRMED`, les places restent comptées (BKG-4) | `booking.confirmed` |
+| `payment.failed` | `CANCELLED` + libération des places (BKG-5) | `booking.cancelled` (`PAYMENT_FAILED`) |
+| aucun, délai dépassé | `CANCELLED` + libération des places (BKG-3) | `booking.cancelled` (`PAYMENT_TIMEOUT`) |
+
+### Doublons et messages en retard
+
+RabbitMQ livre *at least once* et sans garantie d'ordre entre deux sources. Chaque
+transition relit donc la réservation **sous verrou** (`SELECT ... FOR UPDATE`) et laisse la
+machine à états arbitrer :
+
+- un `payment.failed` livré deux fois ne rend les places qu'une fois — la seconde fois, la
+  réservation est déjà `CANCELLED` ;
+- un `payment.failed` arrivant après un `payment.succeeded` est ignoré ;
+- le résultat peut arriver avant que le relais ait marqué `AWAITING_PAYMENT` : c'est pour
+  cela que ce passage est un `UPDATE ... WHERE status = 'PENDING'`, qui ne peut pas écraser
+  un `CONFIRMED` tout juste validé ;
+- un message illisible, de type inconnu ou visant une réservation inconnue est écarté sans
+  remise en queue : le relivrer ne le rendrait pas applicable, il bloquerait la queue.
+
+### Pourquoi les places sont rendues *après* le commit
+
+Redis n'est pas dans la transaction de la base : il faut choisir un ordre, et les deux ont
+une faille.
+
+- **Rendre avant le commit** : si le commit échoue, le message est relivré et les places
+  sont rendues une seconde fois. Le compteur passe sous la réalité → sur-réservation.
+- **Rendre après le commit** : si la libération échoue, des places restent bloquées à tort.
+  C'est tracé en erreur et rattrapable, sans jamais vendre une place deux fois.
+
+On retient le second : des places bloquées à tort se corrigent, une sur-réservation non.
+
+### Expiration des réservations impayées (BKG-3)
+
+`BookingExpirationJob` annule périodiquement les réservations restées `PENDING` ou
+`AWAITING_PAYMENT` au-delà de `eventhub.booking.payment-timeout` (15 min par défaut). C'est
+le filet de sécurité de la Saga si le résultat du paiement n'arrive jamais. Chaque
+réservation est traitée dans sa propre transaction et relue sous verrou, ce qui écarte
+celles payées entre-temps.
+
+> Limites connues :
+> - un paiement accepté **après** l'expiration ne ressuscite pas la réservation (ses places
+>   sont peut-être revendues). Le cas est tracé en erreur ; le remboursement n'est pas
+>   implémenté.
+> - si la libération Redis échoue après l'annulation, le compteur doit être réconcilié à la
+>   main : aucune reprise automatique n'est en place.
+
+## Contrats d'événements
+
+Publiés sur l'exchange `booking.events` (topic, durable). Routing key `booking.requested` :
 
 ```json
 {
@@ -99,11 +166,22 @@ Publié sur l'exchange `booking.events` (topic, durable), routing key `booking.r
 }
 ```
 
-booking-service déclare lui-même la queue `payment.booking-requested.queue` et son binding.
+`booking.confirmed` reprend les mêmes champs métier. `booking.cancelled` remplace `amount`
+par `reason` (`PAYMENT_FAILED` ou `PAYMENT_TIMEOUT`).
+
+| Queue | Routing key | Consommateur |
+|---|---|---|
+| `payment.booking-requested.queue` | `booking.requested` | payment-service |
+| `notification.booking-confirmed.queue` | `booking.confirmed` | notification-service (lot 4) |
+| `notification.booking-cancelled.queue` | `booking.cancelled` | notification-service (lot 4) |
+
+booking-service déclare lui-même les queues de ses consommateurs et leurs bindings.
 Ce choix est assumé : un message publié sur un topic sans binding est jeté sans erreur, donc
 laisser chaque consommateur déclarer sa queue reviendrait à perdre tous les événements émis
 tant que ce consommateur n'a jamais démarré. Les consommateurs redéclarent la même queue de
-leur côté — l'opération est idempotente et chacun reste démarrable seul.
+leur côté — l'opération est idempotente et chacun reste démarrable seul. Conséquence : tant
+que notification-service n'est pas livré, les événements `booking.confirmed` et
+`booking.cancelled` s'accumulent dans leurs queues au lieu d'être perdus.
 
 ## Machine à états
 
@@ -116,7 +194,7 @@ PENDING ──► AWAITING_PAYMENT ──► CONFIRMED
 `CONFIRMED` et `CANCELLED` sont terminaux. C'est ce qui protège la Saga d'un message en
 retard : un `payment.failed` arrivant après un `payment.succeeded` ne peut pas annuler une
 réservation déjà confirmée. Rejouer une transition déjà appliquée est sans effet, ce qui
-rend les futurs listeners idempotents.
+rend le listener de paiement idempotent.
 
 Le passage `PENDING → AWAITING_PAYMENT` est déclenché par le relais, une fois la demande
 réellement publiée : tant que le message n'est pas parti, la réservation n'attend rien.
@@ -140,6 +218,10 @@ la connexion mais ne répond jamais bloquerait un thread Tomcat indéfiniment.
 | `eventhub.event-service.read-timeout` | `3s` | |
 | `eventhub.rabbitmq.exchange` | `booking.events` | |
 | `eventhub.rabbitmq.routing-key.*` | `booking.requested/confirmed/cancelled` | |
+| `eventhub.rabbitmq.payment.exchange` | `payment.events` | Exchange de payment-service |
+| `eventhub.rabbitmq.payment.routing-key.*` | `payment.succeeded/failed` | |
+| `eventhub.booking.payment-timeout` | `15m` | Délai avant expiration d'une réservation impayée |
+| `eventhub.booking.expiration-poll-interval-ms` | `60000` | Fréquence du job d'expiration |
 | `eventhub.outbox.poll-interval-ms` | `1000` | Fréquence du relais |
 | `eventhub.outbox.batch-size` | `100` | Taille de lot |
 | `eventhub.outbox.confirm-timeout-ms` | `5000` | Attente de confirmation broker |
@@ -154,6 +236,9 @@ docker compose up -d
 cd services/event-service && mvn spring-boot:run
 
 cd services/booking-service && mvn spring-boot:run
+
+# pour que les réservations sortent de AWAITING_PAYMENT
+cd services/payment-service && mvn spring-boot:run
 ```
 
 ## Tests
@@ -162,7 +247,7 @@ cd services/booking-service && mvn spring-boot:run
 mvn test
 ```
 
-35 tests, dont les tests d'intégration sur Postgres, Redis et RabbitMQ **réels**
+72 tests, dont les tests d'intégration sur Postgres, Redis et RabbitMQ **réels**
 (Testcontainers). Ce qu'on valide ici — atomicité du script Lua, `FOR UPDATE SKIP LOCKED`,
 confirmations de publication — n'existe tout simplement pas dans un double de test.
 
@@ -171,9 +256,18 @@ confirmations de publication — n'existe tout simplement pas dans un double de 
 | `SeatLockServiceConcurrencyTest` | 2 threads sur la dernière place → 1 seul succès ; 50 threads / 10 places → jamais 11 |
 | `BookingServiceIntegrationTest` | Même chose au niveau réservation ; 20 clients / 5 places → 5 réservations et 5 lignes d'outbox |
 | `OutboxRelayIntegrationTest` | Publication réelle, non-republication, et conservation des messages non routables |
+| `SagaIntegrationTest` | Les deux issues de la Saga sur le vrai broker : paiement réussi → `CONFIRMED` ; paiement échoué → `CANCELLED` + places restituées ; doublons, message en retard, message empoisonné, expiration |
+| `BookingSagaTest` | Ordre « commit puis libération », échec de commit, panne Redis à la libération, paiement arrivé après expiration |
 | `SeatLockServiceFailureTest` | Une panne Redis remonte en 503, jamais en « complet » |
 | `BookingControllerTest` | 401 / 403 / 409 / 400, identité issue du jeton |
 | `BookingStatusTest` | Transitions interdites et rejeu de messages |
 
 Les conteneurs sont démarrés une seule fois pour toute la JVM ; l'état est remis à zéro
 avant chaque test.
+
+`SagaIntegrationTest` tient le rôle de payment-service : il lit la demande réellement
+publiée, puis répond sur `payment.events` avec le message que payment-service émet. La
+moitié « paiement » du scénario est vérifiée dans `PaymentFlowIntegrationTest`, côté
+payment-service. Les deux services étant des modules Maven distincts, aucun test automatisé
+ne les démarre ensemble ; le scénario complet se rejoue à la main avec les deux services
+lancés (`payment.failure-rate=1.0` pour le chemin d'échec).
