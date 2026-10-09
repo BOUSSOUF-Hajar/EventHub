@@ -2,6 +2,7 @@ package com.eventhub.gateway.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
@@ -21,6 +22,9 @@ public class SecurityConfig {
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
         return http
                 .csrf(csrf -> csrf.disable())
+                // Applique la CorsConfigurationSource de CorsConfig avant l'authentification :
+                // les pre-requetes OPTIONS du navigateur, sans jeton, doivent aboutir.
+                .cors(Customizer.withDefaults())
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers(PUBLIC_PATHS).permitAll()
                         .anyExchange().authenticated()
