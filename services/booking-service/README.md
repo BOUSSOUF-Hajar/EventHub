@@ -172,6 +172,7 @@ par `reason` (`PAYMENT_FAILED` ou `PAYMENT_TIMEOUT`).
 | Queue | Routing key | Consommateur |
 |---|---|---|
 | `payment.booking-requested.queue` | `booking.requested` | payment-service |
+| `event.booking-confirmed.queue` | `booking.confirmed` | event-service (places restantes du catalogue) |
 | `notification.booking-confirmed.queue` | `booking.confirmed` | notification-service |
 | `notification.booking-cancelled.queue` | `booking.cancelled` | notification-service |
 

@@ -36,7 +36,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 // Test d'integration : vrai PostgreSQL (Testcontainers) + vraie chaine de securite.
 // Seul le JwtDecoder est remplace, pour ne pas dependre d'un Keycloak demarre :
 // la conversion des roles "realm_access.roles" reste celle de SecurityConfig.
-@SpringBootTest
+// Le listener RabbitMQ (EVT-5) n'est pas demarre ici : ce test ne porte que sur l'API HTTP
+// et n'a pas de broker. Il a son propre test, SeatAvailabilityIntegrationTest.
+@SpringBootTest(properties = "spring.rabbitmq.listener.simple.auto-startup=false")
 @AutoConfigureMockMvc
 @Testcontainers
 class EventControllerIntegrationTest {

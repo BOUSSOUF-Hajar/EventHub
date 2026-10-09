@@ -15,11 +15,23 @@ spring:
       ddl-auto: update # OK pour le dev local ; passer a "validate" + Flyway/Liquibase en production
     show-sql: true
 
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
   security:
     oauth2:
       resourceserver:
         jwt:
           issuer-uri: http://localhost:8081/realms/eventhub
+
+# EVT-5 : evenement de booking-service qui met a jour les places restantes
+eventhub:
+  rabbitmq:
+    exchange: booking.events
+    confirmed-routing-key: booking.confirmed
 
 management:
   endpoints:

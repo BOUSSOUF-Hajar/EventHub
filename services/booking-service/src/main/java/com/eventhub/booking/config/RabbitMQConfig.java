@@ -21,6 +21,9 @@ public class RabbitMQConfig {
     public static final String NOTIFICATION_BOOKING_CONFIRMED_QUEUE = "notification.booking-confirmed.queue";
     public static final String NOTIFICATION_BOOKING_CANCELLED_QUEUE = "notification.booking-cancelled.queue";
 
+    /** Queue consommee par event-service pour tenir a jour les places restantes (EVT-5). */
+    public static final String EVENT_BOOKING_CONFIRMED_QUEUE = "event.booking-confirmed.queue";
+
     /** Queue d'entree de la Saga : les resultats de paiement publies par payment-service. */
     public static final String BOOKING_PAYMENT_RESULT_QUEUE = "booking.payment-result.queue";
 
@@ -89,6 +92,20 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(notificationBookingCancelledQueue)
                 .to(bookingExchange)
                 .with(properties.routingKey().cancelled());
+    }
+
+    @Bean
+    public Queue eventBookingConfirmedQueue() {
+        return QueueBuilder.durable(EVENT_BOOKING_CONFIRMED_QUEUE).build();
+    }
+
+    @Bean
+    public Binding eventBookingConfirmedBinding(Queue eventBookingConfirmedQueue,
+                                                TopicExchange bookingExchange,
+                                                EventHubRabbitProperties properties) {
+        return BindingBuilder.bind(eventBookingConfirmedQueue)
+                .to(bookingExchange)
+                .with(properties.routingKey().confirmed());
     }
 
     /**
