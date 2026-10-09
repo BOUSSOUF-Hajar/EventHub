@@ -102,11 +102,11 @@ eventhub/
 │   ├── event-service/          catalogue d'evenements (CRUD fonctionnel)
 │   ├── booking-service/        reservations, verrou Redis, outbox, orchestration de la Saga
 │   ├── payment-service/        paiement simule idempotent, outbox
-│   └── notification-service/   squelette : listener RabbitMQ -> email (Mailhog)
+│   └── notification-service/   emails de confirmation/annulation (Mailhog), deduplication Redis
 └── frontend/                   React + Vite + TypeScript
 ```
 
-`event-service`, `booking-service` et `payment-service` sont fonctionnels et documentes dans leur propre `README.md`. `notification-service` et le frontend sont encore des squelettes compilables, avec des `TODO` explicites a l'endroit ou la logique doit etre ajoutee.
+Les quatre services metier sont fonctionnels et documentes dans leur propre `README.md`. Le frontend est encore un squelette, avec des `TODO` explicites a l'endroit ou la logique doit etre ajoutee.
 
 ## Roadmap
 
@@ -116,7 +116,7 @@ eventhub/
 - [x] Service Réservations : verrou Redis + table outbox
 - [x] Service Paiements : mock + idempotence
 - [x] Saga orchestrée Réservation → Paiement → Confirmation (+ compensation)
-- [ ] Service Notifications : email de confirmation/échec
+- [x] Service Notifications : email de confirmation/échec
 - [ ] Frontend : parcours de réservation complet, dashboard organisateur
 - [ ] Tests d'intégration Testcontainers sur chaque service
 - [ ] Pipeline CI/CD GitHub Actions (build, tests, images Docker)

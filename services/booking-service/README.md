@@ -172,16 +172,17 @@ par `reason` (`PAYMENT_FAILED` ou `PAYMENT_TIMEOUT`).
 | Queue | Routing key | Consommateur |
 |---|---|---|
 | `payment.booking-requested.queue` | `booking.requested` | payment-service |
-| `notification.booking-confirmed.queue` | `booking.confirmed` | notification-service (lot 4) |
-| `notification.booking-cancelled.queue` | `booking.cancelled` | notification-service (lot 4) |
+| `notification.booking-confirmed.queue` | `booking.confirmed` | notification-service |
+| `notification.booking-cancelled.queue` | `booking.cancelled` | notification-service |
 
 booking-service déclare lui-même les queues de ses consommateurs et leurs bindings.
 Ce choix est assumé : un message publié sur un topic sans binding est jeté sans erreur, donc
 laisser chaque consommateur déclarer sa queue reviendrait à perdre tous les événements émis
 tant que ce consommateur n'a jamais démarré. Les consommateurs redéclarent la même queue de
 leur côté — l'opération est idempotente et chacun reste démarrable seul. Conséquence : tant
-que notification-service n'est pas livré, les événements `booking.confirmed` et
-`booking.cancelled` s'accumulent dans leurs queues au lieu d'être perdus.
+que notification-service est arrêté, les événements `booking.confirmed` et
+`booking.cancelled` s'accumulent dans leurs queues au lieu d'être perdus, et les e-mails
+partent à son redémarrage.
 
 ## Machine à états
 
