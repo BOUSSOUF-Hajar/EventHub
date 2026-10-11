@@ -38,7 +38,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 // la conversion des roles "realm_access.roles" reste celle de SecurityConfig.
 // Le listener RabbitMQ (EVT-5) n'est pas demarre ici : ce test ne porte que sur l'API HTTP
 // et n'a pas de broker. Il a son propre test, SeatAvailabilityIntegrationTest.
-@SpringBootTest(properties = "spring.rabbitmq.listener.simple.auto-startup=false")
+// Sans broker, l'indicateur de sante RabbitMQ ferait passer /actuator/health en 503.
+@SpringBootTest(properties = {
+        "spring.rabbitmq.listener.simple.auto-startup=false",
+        "management.health.rabbit.enabled=false"
+})
 @AutoConfigureMockMvc
 @Testcontainers
 class EventControllerIntegrationTest {
