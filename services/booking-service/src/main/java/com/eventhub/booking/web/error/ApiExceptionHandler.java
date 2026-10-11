@@ -20,14 +20,20 @@ public class ApiExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
+    // Le "detail" est affiche tel quel par le frontend : il est redige pour l'utilisateur,
+    // sans identifiant technique. Le message de l'exception, lui, reste destine aux logs.
     @ExceptionHandler(NotEnoughSeatsException.class)
     public ProblemDetail handleNotEnoughSeats(NotEnoughSeatsException e) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+        log.info(e.getMessage());
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                "Il ne reste plus assez de places pour cette demande.");
     }
 
     @ExceptionHandler(EventNotBookableException.class)
     public ProblemDetail handleEventNotBookable(EventNotBookableException e) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+        log.info(e.getMessage());
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                "Cet événement n'est pas réservable : " + e.getReason() + ".");
     }
 
     @ExceptionHandler(EventNotFoundException.class)
@@ -44,14 +50,14 @@ public class ApiExceptionHandler {
     public ProblemDetail handleCatalogUnavailable(EventCatalogUnavailableException e) {
         log.error("Service Evenements injoignable", e);
         return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE,
-                "Le catalogue d'evenements est momentanement indisponible, reessayez plus tard.");
+                "Le catalogue d'événements est momentanément indisponible, réessayez plus tard.");
     }
 
     @ExceptionHandler(SeatLockUnavailableException.class)
     public ProblemDetail handleSeatLockUnavailable(SeatLockUnavailableException e) {
         log.error("Verrou de disponibilite indisponible", e);
         return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE,
-                "La disponibilite ne peut pas etre verifiee pour le moment, reessayez plus tard.");
+                "La disponibilité ne peut pas être vérifiée pour le moment, réessayez plus tard.");
     }
 
     @ExceptionHandler(InvalidTokenException.class)

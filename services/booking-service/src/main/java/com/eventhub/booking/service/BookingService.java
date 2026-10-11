@@ -102,10 +102,10 @@ public class BookingService {
     /** Un evenement passe ou sans prix renseigne ne se reserve pas : on refuse avant de verrouiller. */
     private void requireBookable(EventSummary event, UUID eventId) {
         if (!event.startsAt().isAfter(Instant.now())) {
-            throw new EventNotBookableException(eventId, "il a deja commence");
+            throw new EventNotBookableException(eventId, "il a déjà commencé");
         }
         if (event.unitPrice().signum() <= 0) {
-            throw new EventNotBookableException(eventId, "son prix n'est pas renseigne");
+            throw new EventNotBookableException(eventId, "son prix n'est pas renseigné");
         }
     }
 

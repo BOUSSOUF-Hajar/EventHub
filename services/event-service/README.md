@@ -42,7 +42,7 @@ Le service valide lui-même chaque JWT auprès de Keycloak (`issuer-uri`), sans 
 
 ```bash
 # depuis la racine du dépôt : Postgres et Keycloak
-docker compose up -d postgres-event keycloak
+docker compose up -d postgres-event keycloak rabbitmq
 
 cd services/event-service
 mvn spring-boot:run
@@ -56,10 +56,30 @@ mvn test
 
 `EventControllerIntegrationTest` démarre un vrai PostgreSQL avec Testcontainers (Docker doit tourner) et vérifie les critères EVT-1 à EVT-4. Keycloak n'est pas nécessaire : seul le décodage du JWT est simulé, la conversion des rôles est celle du service.
 
+`SeatAvailabilityIntegrationTest` vérifie EVT-5 sur PostgreSQL et RabbitMQ réels : décompte des places, message livré deux fois décompté une seule fois, compteur jamais négatif, message illisible qui ne bloque pas la queue.
+
 Pour tester à la main, importer `postman/EventHub.postman_collection.json` et utiliser le dossier « Event Service ».
+
+## Places restantes (EVT-5)
+
+`remainingSeats` est mis à jour de façon **asynchrone** : event-service consomme
+`booking.confirmed` (queue `event.booking-confirmed.queue`) et retire les places de la
+réservation confirmée.
+
+- Le retrait est un `UPDATE ... SET remaining_seats = remaining_seats - n WHERE remaining_seats >= n` :
+  atomique, donc sans perte entre deux confirmations simultanées, et jamais négatif.
+- Chaque message appliqué est tracé dans `processed_messages` (clé = `messageId`), **dans la
+  même transaction** que le retrait : un message relivré par RabbitMQ n'est décompté qu'une fois.
+
+Ce compteur est une copie de lecture pour l'affichage du catalogue. La vérité sur la
+disponibilité reste le verrou Redis de booking-service : le catalogue peut afficher une
+place qu'un autre client vient de prendre, la réservation est alors refusée par
+booking-service. Seules les réservations **confirmées** sont comptées, pas celles en
+attente de paiement.
 
 ## Limites connues
 
 - Un événement n'a pas de propriétaire : tout organisateur peut supprimer l'événement d'un autre (EVT-4 parle de « mes événements »).
 - `POST` reçoit directement l'entité `Event` ; un DTO dédié avec validation métier (date future, capacité > 0) reste à écrire.
-- `remainingSeats` n'est pas encore mis à jour par `booking.confirmed` (EVT-5, lots suivants).
+- Supprimer un événement ne touche pas à ses réservations : elles restent chez booking-service, sans annulation ni remboursement.
+- La table `processed_messages` n'est jamais purgée.

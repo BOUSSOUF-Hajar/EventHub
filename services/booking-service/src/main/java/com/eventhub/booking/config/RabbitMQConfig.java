@@ -17,9 +17,12 @@ public class RabbitMQConfig {
     /** Queue consommee par payment-service. */
     public static final String PAYMENT_BOOKING_REQUESTED_QUEUE = "payment.booking-requested.queue";
 
-    /** Queues consommees par notification-service (lot 4). */
+    /** Queues consommees par notification-service. */
     public static final String NOTIFICATION_BOOKING_CONFIRMED_QUEUE = "notification.booking-confirmed.queue";
     public static final String NOTIFICATION_BOOKING_CANCELLED_QUEUE = "notification.booking-cancelled.queue";
+
+    /** Queue consommee par event-service pour tenir a jour les places restantes (EVT-5). */
+    public static final String EVENT_BOOKING_CONFIRMED_QUEUE = "event.booking-confirmed.queue";
 
     /** Queue d'entree de la Saga : les resultats de paiement publies par payment-service. */
     public static final String BOOKING_PAYMENT_RESULT_QUEUE = "booking.payment-result.queue";
@@ -61,7 +64,7 @@ public class RabbitMQConfig {
     /**
      * Meme raison pour les queues de notification-service : sans elles, le relais d'outbox
      * (flag mandatory) ne pourrait jamais marquer "booking.confirmed" comme publie. Tant que
-     * le lot 4 n'est pas livre, les evenements s'y accumulent au lieu d'etre perdus.
+     * notification-service est arrete, les evenements s'y accumulent au lieu d'etre perdus.
      */
     @Bean
     public Queue notificationBookingConfirmedQueue() {
@@ -89,6 +92,20 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(notificationBookingCancelledQueue)
                 .to(bookingExchange)
                 .with(properties.routingKey().cancelled());
+    }
+
+    @Bean
+    public Queue eventBookingConfirmedQueue() {
+        return QueueBuilder.durable(EVENT_BOOKING_CONFIRMED_QUEUE).build();
+    }
+
+    @Bean
+    public Binding eventBookingConfirmedBinding(Queue eventBookingConfirmedQueue,
+                                                TopicExchange bookingExchange,
+                                                EventHubRabbitProperties properties) {
+        return BindingBuilder.bind(eventBookingConfirmedQueue)
+                .to(bookingExchange)
+                .with(properties.routingKey().confirmed());
     }
 
     /**

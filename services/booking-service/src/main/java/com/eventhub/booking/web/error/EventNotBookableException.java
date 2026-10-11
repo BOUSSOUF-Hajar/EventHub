@@ -9,7 +9,15 @@ import java.util.UUID;
  */
 public class EventNotBookableException extends RuntimeException {
 
+    private final String reason;
+
     public EventNotBookableException(UUID eventId, String reason) {
         super("L'evenement " + eventId + " n'est pas reservable : " + reason);
+        this.reason = reason;
+    }
+
+    /** Motif seul, sans identifiant technique : c'est lui qui est renvoye au client. */
+    public String getReason() {
+        return reason;
     }
 }

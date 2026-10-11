@@ -58,6 +58,19 @@ class GatewaySecurityTest {
                 .expectHeader().valueEquals(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5173");
     }
 
+    // Une pre-requete ne porte jamais de jeton : sur une route protegee, elle doit quand
+    // meme aboutir, sinon le navigateur bloque l'appel authentifie qui la suit.
+    @Test
+    void corsPreflightSucceedsOnProtectedRoute() {
+        webTestClient.options().uri("/api/bookings")
+                .header(HttpHeaders.ORIGIN, "http://localhost:5173")
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "authorization,content-type")
+                .exchange()
+                .expectStatus().isOk()
+                .expectHeader().valueEquals(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5173");
+    }
+
     @Test
     void corsPreflightRejectsUnknownOrigin() {
         webTestClient.options().uri("/api/events")

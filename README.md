@@ -63,16 +63,22 @@ Chaque service métier possède sa **propre base de données** (pattern *databas
 # 1. Lancer toute l'infrastructure (Postgres x3, RabbitMQ, Keycloak, Redis, Mailhog)
 docker compose up -d
 
-# 2. Lancer un service backend (exemple : event-service)
+# 2. Lancer chaque service backend dans son terminal :
+#    gateway, event-service, booking-service, payment-service, notification-service
 cd services/event-service
-./mvnw spring-boot:run
+mvn spring-boot:run
 
 # 3. Lancer le frontend
 cd frontend
-cp .env.examplme .env
+cp .env.example .env
 npm install
 npm run dev
 ```
+
+Le parcours de démonstration (comptes, étapes, chemin d'échec) est décrit dans le
+[README du frontend](./frontend/README.md).
+
+![Suivi d'une réservation](./docs/screenshots/suivi-confirme.png)
 
 Interfaces utiles en local :
 
@@ -102,11 +108,11 @@ eventhub/
 │   ├── event-service/          catalogue d'evenements (CRUD fonctionnel)
 │   ├── booking-service/        reservations, verrou Redis, outbox, orchestration de la Saga
 │   ├── payment-service/        paiement simule idempotent, outbox
-│   └── notification-service/   squelette : listener RabbitMQ -> email (Mailhog)
+│   └── notification-service/   emails de confirmation/annulation (Mailhog), deduplication Redis
 └── frontend/                   React + Vite + TypeScript
 ```
 
-`event-service`, `booking-service` et `payment-service` sont fonctionnels et documentes dans leur propre `README.md`. `notification-service` et le frontend sont encore des squelettes compilables, avec des `TODO` explicites a l'endroit ou la logique doit etre ajoutee.
+Les quatre services metier, le Gateway et le frontend sont fonctionnels et documentes dans leur propre `README.md`.
 
 ## Roadmap
 
@@ -116,8 +122,8 @@ eventhub/
 - [x] Service Réservations : verrou Redis + table outbox
 - [x] Service Paiements : mock + idempotence
 - [x] Saga orchestrée Réservation → Paiement → Confirmation (+ compensation)
-- [ ] Service Notifications : email de confirmation/échec
-- [ ] Frontend : parcours de réservation complet, dashboard organisateur
+- [x] Service Notifications : email de confirmation/échec
+- [x] Frontend : parcours de réservation complet, dashboard organisateur
 - [ ] Tests d'intégration Testcontainers sur chaque service
 - [ ] Pipeline CI/CD GitHub Actions (build, tests, images Docker)
 - [ ] Observabilité (Actuator, tracing, dashboards)
@@ -136,7 +142,7 @@ Détail complet de chaque lot dans le [cahier des charges](./CAHIER_DES_CHARGES.
 
 - Unitaires : JUnit 5 + Mockito sur la logique métier de chaque service.
 - Intégration : Testcontainers (Postgres, RabbitMQ réels) — voir `event-service` pour un premier exemple à dupliquer.
-- Frontend : Vitest pour les composants, Cypress/Playwright prévu pour l'E2E.
+- Frontend : Vitest sur la logique pure (étapes de la Saga, rôles, formulaires) ; pas encore de test de composants ni d'E2E automatisé.
 
 ## Licence
 

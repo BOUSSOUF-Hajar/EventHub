@@ -1,0 +1,23 @@
+spring:
+  rabbitmq:
+    listener:
+      simple:
+        # Essais rapproches : les tests ne doivent pas attendre 35 s qu'un bail expire.
+        retry:
+          enabled: true
+          initial-interval: 200ms
+          multiplier: 1
+          max-interval: 200ms
+          max-attempts: 3
+
+eventhub:
+  notification:
+    from: no-reply@eventhub.test
+    deduplication:
+      lease: 2s
+      retention: 1h
+
+logging:
+  level:
+    org.testcontainers: WARN
+    com.github.dockerjava: WARN

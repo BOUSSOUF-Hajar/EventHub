@@ -20,7 +20,7 @@ Toute autre requête sans JWT valide renvoie 401.
 
 Le Gateway ne vérifie que la présence d'un JWT valide, pas les rôles. `/api/events/**` est ouvert en entier parce que la lecture du catalogue est publique ; ce sont les services qui refusent les écritures sans le bon rôle (event-service renvoie 401 ou 403 sur `POST` et `DELETE`). Chaque service reste donc protégé même s'il est appelé sans passer par le Gateway.
 
-CORS : seule l'origine du frontend, `http://localhost:5173`, est autorisée.
+CORS : seule l'origine du frontend, `http://localhost:5173`, est autorisée. La configuration CORS est appliquée par la chaîne de sécurité elle-même (`.cors()`), donc **avant** l'authentification : une pré-requête `OPTIONS` ne porte jamais de jeton, et un filtre CORS placé après la sécurité la laisserait rejeter en 401 sur les routes protégées, ce qui bloquerait dans le navigateur tous les appels authentifiés.
 
 ## Lancer
 
@@ -40,7 +40,7 @@ Les services cibles doivent tourner pour que leurs routes répondent.
 mvn test
 ```
 
-`GatewaySecurityTest` vérifie les règles propres au Gateway (health public, JWT obligatoire sur réservations et paiements, catalogue non bloqué, CORS) sans Keycloak ni service cible démarrés.
+`GatewaySecurityTest` vérifie les règles propres au Gateway (health public, JWT obligatoire sur réservations et paiements, catalogue non bloqué, CORS y compris la pré-requête d'une route protégée) sans Keycloak ni service cible démarrés.
 
 Pour tester à la main, importer `postman/EventHub.postman_collection.json` et utiliser le dossier « Gateway ».
 

@@ -178,7 +178,9 @@ class BookingControllerTest {
                         .with(customerJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VALID_BODY))
-                .andExpect(status().isConflict());
+                .andExpect(status().isConflict())
+                // message affiche tel quel a l'utilisateur : lisible, sans identifiant technique
+                .andExpect(jsonPath("$.detail").value("Il ne reste plus assez de places pour cette demande."));
     }
 
     @Test
