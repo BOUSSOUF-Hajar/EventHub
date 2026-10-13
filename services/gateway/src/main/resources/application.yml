@@ -15,19 +15,52 @@ spring:
     gateway:
       routes:
         - id: event-service
-          uri: http://localhost:8082
+          uri: ${eventhub.services.event-service-url:http://localhost:8082}
           predicates:
             - Path=/api/events/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: event-service
+                fallbackUri: forward:/fallback/event-service
 
         - id: booking-service
-          uri: http://localhost:8083
+          uri: ${eventhub.services.booking-service-url:http://localhost:8083}
           predicates:
             - Path=/api/bookings/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: booking-service
+                fallbackUri: forward:/fallback/booking-service
 
         - id: payment-service
-          uri: http://localhost:8084
+          uri: ${eventhub.services.payment-service-url:http://localhost:8084}
           predicates:
             - Path=/api/payments/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: payment-service
+                fallbackUri: forward:/fallback/payment-service
+
+# Un circuit par service : la panne de l'un n'ouvre pas le circuit des autres.
+# Seuls les echecs de connexion et les depassements de delai comptent ; une reponse 4xx/5xx
+# du service est relayee telle quelle.
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 2
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 5s
 
 management:
   endpoints:
