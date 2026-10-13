@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter xmlns="https://github.com/spotbugs/filter/3.0.0">
+    <!-- Injection par constructeur : les beans Spring recus (ObjectMapper, RabbitTemplate...)
+         sont des singletons partages, une copie defensive n'aurait pas de sens. -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <!-- Persistable.getId() est declare @Nullable, mais le relais ne manipule que des
+         evenements relus en base, dont l'identifiant est la cle primaire. -->
+    <Match>
+        <Class name="com.eventhub.booking.outbox.OutboxRelay"/>
+        <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+    </Match>
+</FindBugsFilter>
