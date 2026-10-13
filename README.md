@@ -57,11 +57,23 @@ Chaque service métier possède sa **propre base de données** (pattern *databas
 
 ## Demarrage rapide
 
-**Prérequis** : Docker & Docker Compose, Java 21, Maven, Node.js 18+.
+### Tout dans Docker
+
+**Prérequis** : Docker & Docker Compose, rien d'autre.
 
 ```bash
-# 1. Lancer toute l'infrastructure (Postgres x3, RabbitMQ, Keycloak, Redis, Mailhog)
-docker compose up -d
+docker compose up -d --build
+```
+
+Cette commande construit les images des cinq services et du frontend, puis démarre l'ensemble avec l'infrastructure (Postgres x3, RabbitMQ, Keycloak, Redis, Mailhog). Le premier build télécharge les images de base et les dépendances Maven et npm ; les suivants réutilisent le cache.
+
+### En développement (services lancés sur le poste)
+
+**Prérequis** : Docker & Docker Compose, Java 17, Maven, Node.js 18+.
+
+```bash
+# 1. Lancer uniquement l'infrastructure
+docker compose up -d postgres-event postgres-booking postgres-payment rabbitmq redis keycloak mailhog
 
 # 2. Lancer chaque service backend dans son terminal :
 #    gateway, event-service, booking-service, payment-service, notification-service
@@ -74,6 +86,8 @@ cp .env.example .env
 npm install
 npm run dev
 ```
+
+Les deux modes publient les mêmes ports : ne pas lancer un service sur le poste si son conteneur tourne déjà.
 
 Le parcours de démonstration (comptes, étapes, chemin d'échec) est décrit dans le
 [README du frontend](./frontend/README.md).
@@ -101,7 +115,7 @@ Utilisateurs de test (realm `eventhub` déjà importé) :
 
 ```
 eventhub/
-├── docker-compose.yml          infra locale complete
+├── docker-compose.yml          infra, services et frontend
 ├── keycloak/realm-export.json  realm pre-configure (roles, client, users de test)
 ├── services/
 │   ├── gateway/                Spring Cloud Gateway + securite JWT
