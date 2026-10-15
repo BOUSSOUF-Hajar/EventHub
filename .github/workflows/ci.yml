@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+# Un nouveau push sur la meme branche annule l'execution precedente, devenue inutile.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Tests unitaires et Testcontainers, seuil de couverture Jacoco et analyse SpotBugs :
+  # tout est lie a la phase "verify", un seul echec fait echouer le job.
+  backend:
+    name: backend (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      # Un service en echec n'interrompt pas les autres : on voit tous les problemes d'un coup.
+      fail-fast: false
+      matrix:
+        service: [gateway, event-service, booking-service, payment-service, notification-service]
+    defaults:
+      run:
+        working-directory: services/${{ matrix.service }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+          cache-dependency-path: services/${{ matrix.service }}/pom.xml
+
+      # Docker est preinstalle sur ubuntu-latest : Testcontainers y demarre Postgres,
+      # RabbitMQ et Redis sans configuration supplementaire.
+      - name: Build, tests, couverture et analyse statique
+        run: mvn -B verify
+
+      - name: Rapport de couverture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-${{ matrix.service }}
+          path: services/${{ matrix.service }}/target/site/jacoco/
+          if-no-files-found: ignore
+
+  frontend:
+    name: frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm test
+      # "build" lance aussi tsc : il echoue sur toute erreur de typage.
+      - run: npm run build
+
+  # Les images ne sont construites qu'une fois le code valide, et ne sont pas publiees :
+  # ce job garantit seulement que "docker compose up --build" fonctionne.
+  docker:
+    name: docker (${{ matrix.image }})
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: gateway
+            context: services/gateway
+          - image: event-service
+            context: services/event-service
+          - image: booking-service
+            context: services/booking-service
+          - image: payment-service
+            context: services/payment-service
+          - image: notification-service
+            context: services/notification-service
+          - image: frontend
+            context: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build de l'image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: false
+          tags: eventhub/${{ matrix.image }}:ci
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}

@@ -1,5 +1,18 @@
 name: eventhub
 
+# Validation des JWT depuis un conteneur : les jetons sont emis pour l'URL que voit le
+# navigateur (http://localhost:8081), injoignable depuis le reseau Docker. Les services
+# recuperent donc les cles publiques de Keycloak par son nom de service, tout en continuant
+# de verifier que l'emetteur du jeton est bien l'URL publique (issuer-uri de leur config).
+x-jwt-env: &jwt-env
+  SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/eventhub/protocol/openid-connect/certs
+
+x-postgres-healthcheck: &postgres-healthcheck
+  test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+  interval: 5s
+  timeout: 5s
+  retries: 10
+
 services:
 
   # ---------- Bases de donnees (1 par service, pattern database-per-service) ----------
@@ -14,6 +27,7 @@ services:
       - "5433:5432"
     volumes:
       - pg_event_data:/var/lib/postgresql/data
+    healthcheck: *postgres-healthcheck
 
   postgres-booking:
     image: postgres:16-alpine
@@ -26,6 +40,7 @@ services:
       - "5434:5432"
     volumes:
       - pg_booking_data:/var/lib/postgresql/data
+    healthcheck: *postgres-healthcheck
 
   postgres-payment:
     image: postgres:16-alpine
@@ -38,6 +53,7 @@ services:
       - "5435:5432"
     volumes:
       - pg_payment_data:/var/lib/postgresql/data
+    healthcheck: *postgres-healthcheck
 
   # ---------- Bus d'evenements ----------
   rabbitmq:
@@ -80,43 +96,93 @@ services:
       - "1025:1025" # serveur SMTP
       - "8025:8025" # UI web
 
-  # ---------- Services applicatifs (a decommenter au fur et a mesure du developpement) ----------
-  # gateway:
-  #   build: ./services/gateway
-  #   ports:
-  #     - "8080:8080"
-  #   depends_on:
-  #     - keycloak
-  #
-  # event-service:
-  #   build: ./services/event-service
-  #   ports:
-  #     - "8082:8080"
-  #   depends_on:
-  #     - postgres-event
-  #
-  # booking-service:
-  #   build: ./services/booking-service
-  #   ports:
-  #     - "8083:8080"
-  #   depends_on:
-  #     - postgres-booking
-  #     - rabbitmq
-  #     - redis
-  #
-  # payment-service:
-  #   build: ./services/payment-service
-  #   ports:
-  #     - "8084:8080"
-  #   depends_on:
-  #     - postgres-payment
-  #     - rabbitmq
-  #
-  # notification-service:
-  #   build: ./services/notification-service
-  #   depends_on:
-  #     - rabbitmq
-  #     - mailhog
+  # ---------- Services applicatifs ----------
+  # Les variables d'environnement remplacent les adresses "localhost" des application.yml
+  # par les noms de service du reseau Docker.
+  gateway:
+    build: ./services/gateway
+    ports:
+      - "8080:8080"
+    environment:
+      <<: *jwt-env
+      EVENTHUB_SERVICES_EVENT_SERVICE_URL: http://event-service:8082
+      EVENTHUB_SERVICES_BOOKING_SERVICE_URL: http://booking-service:8083
+      EVENTHUB_SERVICES_PAYMENT_SERVICE_URL: http://payment-service:8084
+    depends_on:
+      - keycloak
+      - event-service
+      - booking-service
+      - payment-service
+
+  event-service:
+    build: ./services/event-service
+    ports:
+      - "8082:8082"
+    environment:
+      <<: *jwt-env
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-event:5432/event_db
+      SPRING_RABBITMQ_HOST: rabbitmq
+    depends_on:
+      postgres-event:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  booking-service:
+    build: ./services/booking-service
+    ports:
+      - "8083:8083"
+    environment:
+      <<: *jwt-env
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-booking:5432/booking_db
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_DATA_REDIS_HOST: redis
+      EVENTHUB_EVENTSERVICE_BASEURL: http://event-service:8082
+    depends_on:
+      postgres-booking:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  payment-service:
+    build: ./services/payment-service
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-payment:5432/payment_db
+      SPRING_RABBITMQ_HOST: rabbitmq
+    depends_on:
+      postgres-payment:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  notification-service:
+    build: ./services/notification-service
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_MAIL_HOST: mailhog
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      mailhog:
+        condition: service_started
+
+  # ---------- Frontend ----------
+  # Publie sur 5173, comme "npm run dev" : c'est l'origine autorisee par Keycloak
+  # (redirectUris) et par le CORS du Gateway.
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - gateway
+
   adminer:
     image: adminer
     restart: always
