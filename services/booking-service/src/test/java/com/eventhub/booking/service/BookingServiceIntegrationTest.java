@@ -8,9 +8,13 @@ import com.eventhub.booking.domain.OutboxEvent;
 import com.eventhub.booking.repository.BookingRepository;
 import com.eventhub.booking.repository.OutboxEventRepository;
 import com.eventhub.booking.support.AbstractIntegrationTest;
+import com.eventhub.booking.web.dto.BookingResponse;
 import com.eventhub.booking.web.error.NotEnoughSeatsException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityManagerFactory;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -51,6 +55,9 @@ class BookingServiceIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private EntityManagerFactory entityManagerFactory;
 
     /**
      * event-service est mocke : ce test porte sur la logique de reservation, pas sur
@@ -160,6 +167,27 @@ class BookingServiceIntegrationTest extends AbstractIntegrationTest {
 
         assertThat(bookingService.findMine(alice.id())).hasSize(2);
         assertThat(bookingService.findMine(bob.id())).hasSize(1);
+    }
+
+    // Contrainte du cahier des charges : pas de requete N+1 sur les endpoints de liste.
+    // On reproduit le travail de GET /api/bookings/me, y compris la conversion en DTO.
+    @Test
+    @DisplayName("la liste des reservations d'un client tient en une seule requete SQL")
+    void findMineRunsASingleQueryWhateverTheNumberOfBookings() {
+        UUID eventId = UUID.randomUUID();
+        bookingRepository.saveAll(List.of(
+                new Booking(eventId, alice.id(), alice.email(), 1, UNIT_PRICE),
+                new Booking(eventId, alice.id(), alice.email(), 2, UNIT_PRICE.multiply(BigDecimal.valueOf(2))),
+                new Booking(eventId, alice.id(), alice.email(), 3, UNIT_PRICE.multiply(BigDecimal.valueOf(3)))));
+        Statistics statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
+        statistics.clear();
+
+        List<BookingResponse> responses = bookingService.findMine(alice.id()).stream()
+                .map(BookingResponse::from)
+                .toList();
+
+        assertThat(responses).hasSize(3);
+        assertThat(statistics.getPrepareStatementCount()).isEqualTo(1);
     }
 
     private UUID givenEventWithCapacity(int capacity) {

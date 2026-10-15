@@ -2,6 +2,9 @@ package com.eventhub.event.web;
 
 import com.eventhub.event.domain.Event;
 import com.eventhub.event.repository.EventRepository;
+import jakarta.persistence.EntityManagerFactory;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,9 +42,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 // Le listener RabbitMQ (EVT-5) n'est pas demarre ici : ce test ne porte que sur l'API HTTP
 // et n'a pas de broker. Il a son propre test, SeatAvailabilityIntegrationTest.
 // Sans broker, l'indicateur de sante RabbitMQ ferait passer /actuator/health en 503.
+// Les statistiques Hibernate permettent de compter les requetes SQL d'un appel (N+1).
 @SpringBootTest(properties = {
         "spring.rabbitmq.listener.simple.auto-startup=false",
-        "management.health.rabbit.enabled=false"
+        "management.health.rabbit.enabled=false",
+        "spring.jpa.properties.hibernate.generate_statistics=true"
 })
 @AutoConfigureMockMvc
 @Testcontainers
@@ -88,6 +93,9 @@ class EventControllerIntegrationTest {
     @Autowired
     private EventRepository eventRepository;
 
+    @Autowired
+    private EntityManagerFactory entityManagerFactory;
+
     @MockBean
     private JwtDecoder jwtDecoder;
 
@@ -106,6 +114,23 @@ class EventControllerIntegrationTest {
         mockMvc.perform(get("/api/events"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)));
+    }
+
+    // Contrainte du cahier des charges : pas de requete N+1 sur les endpoints de liste.
+    // Le nombre de requetes doit rester le meme quel que soit le nombre d'evenements.
+    @Test
+    void listRunsASingleQueryWhateverTheNumberOfEvents() throws Exception {
+        savedEvent();
+        savedEvent();
+        savedEvent();
+        Statistics statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
+        statistics.clear();
+
+        mockMvc.perform(get("/api/events"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(3)));
+
+        assertThat(statistics.getPrepareStatementCount()).isEqualTo(1);
     }
 
     // EVT-2
