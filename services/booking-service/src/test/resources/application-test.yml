@@ -3,6 +3,9 @@ spring:
     hibernate:
       ddl-auto: create-drop
     show-sql: false
+    properties:
+      # Permet de compter les requetes SQL d'un appel (test anti N+1)
+      hibernate.generate_statistics: true
 
   rabbitmq:
     publisher-confirm-type: correlated

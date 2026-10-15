@@ -7,6 +7,20 @@ name: eventhub
 x-jwt-env: &jwt-env
   SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/eventhub/protocol/openid-connect/certs
 
+# Logs JSON (une ligne par evenement) dans les conteneurs, texte en developpement.
+# La banniere Spring Boot est ecrite hors du logger : desactivee pour que chaque ligne
+# de sortie soit du JSON.
+x-logs-env: &logs-env
+  SPRING_PROFILES_ACTIVE: json-logs
+  SPRING_MAIN_BANNER_MODE: "off"
+
+# Meme raison pour show-sql, qui ecrit directement sur la sortie standard. Les requetes
+# restent visibles en developpement.
+x-jpa-logs-env: &jpa-logs-env
+  SPRING_PROFILES_ACTIVE: json-logs
+  SPRING_MAIN_BANNER_MODE: "off"
+  SPRING_JPA_SHOW_SQL: "false"
+
 x-postgres-healthcheck: &postgres-healthcheck
   test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
   interval: 5s
@@ -104,7 +118,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      <<: *jwt-env
+      <<: [*jwt-env, *logs-env]
       EVENTHUB_SERVICES_EVENT_SERVICE_URL: http://event-service:8082
       EVENTHUB_SERVICES_BOOKING_SERVICE_URL: http://booking-service:8083
       EVENTHUB_SERVICES_PAYMENT_SERVICE_URL: http://payment-service:8084
@@ -119,7 +133,7 @@ services:
     ports:
       - "8082:8082"
     environment:
-      <<: *jwt-env
+      <<: [*jwt-env, *jpa-logs-env]
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-event:5432/event_db
       SPRING_RABBITMQ_HOST: rabbitmq
     depends_on:
@@ -133,7 +147,7 @@ services:
     ports:
       - "8083:8083"
     environment:
-      <<: *jwt-env
+      <<: [*jwt-env, *jpa-logs-env]
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-booking:5432/booking_db
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_DATA_REDIS_HOST: redis
@@ -151,6 +165,7 @@ services:
     ports:
       - "8084:8084"
     environment:
+      <<: *jpa-logs-env
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-payment:5432/payment_db
       SPRING_RABBITMQ_HOST: rabbitmq
     depends_on:
@@ -162,6 +177,7 @@ services:
   notification-service:
     build: ./services/notification-service
     environment:
+      <<: *logs-env
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_DATA_REDIS_HOST: redis
       SPRING_MAIL_HOST: mailhog

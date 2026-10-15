@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Logs texte lisibles en developpement ; avec le profil json-logs (active dans
+  docker-compose.yml), un objet JSON par ligne, exploitable tel quel par un collecteur
+  (Loki, ELK...) : horodatage, niveau, logger, thread, message, MDC et stack trace.
+-->
+<configuration>
+    <!-- Propriete de contexte : LogstashEncoder l'ajoute a chaque ligne JSON ("service") -->
+    <springProperty scope="context" name="service" source="spring.application.name"/>
+
+    <springProfile name="!json-logs">
+        <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+        <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="json-logs">
+        <appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
+        </appender>
+        <root level="INFO">
+            <appender-ref ref="JSON"/>
+        </root>
+    </springProfile>
+</configuration>
