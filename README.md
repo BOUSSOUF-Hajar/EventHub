@@ -1,5 +1,7 @@
 # EventHub
 
+[![CI](https://github.com/BOUSSOUF-Hajar/EventHub/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/BOUSSOUF-Hajar/EventHub/actions/workflows/ci.yml)
+
 Plateforme de reservation de billets pour evenements (concerts, conferences, sport), construite comme un ensemble de microservices Spring Boot avec un frontend React.
 
 Projet pense pour mettre en pratique — et pouvoir argumenter en entretien — une architecture microservices realiste : authentification centralisee (Keycloak), communication asynchrone (RabbitMQ), Saga avec compensation, et un pipeline CI/CD complet.
@@ -15,6 +17,7 @@ Projet pense pour mettre en pratique — et pouvoir argumenter en entretien — 
 - [Roadmap](#roadmap)
 - [Patterns mis en oeuvre](#patterns-mis-en-oeuvre)
 - [Tests](#tests)
+- [Intégration continue](#intégration-continue)
 - [Licence](#licence)
 
 ## Architecture
@@ -138,8 +141,8 @@ Les quatre services metier, le Gateway et le frontend sont fonctionnels et docum
 - [x] Saga orchestrée Réservation → Paiement → Confirmation (+ compensation)
 - [x] Service Notifications : email de confirmation/échec
 - [x] Frontend : parcours de réservation complet, dashboard organisateur
-- [ ] Tests d'intégration Testcontainers sur chaque service
-- [ ] Pipeline CI/CD GitHub Actions (build, tests, images Docker)
+- [x] Tests d'intégration Testcontainers sur chaque service
+- [x] Pipeline CI/CD GitHub Actions (build, tests, couverture, analyse statique, images Docker)
 - [ ] Observabilité (Actuator, tracing, dashboards)
 
 Détail complet de chaque lot dans le [cahier des charges](./CAHIER_DES_CHARGES.md).
@@ -155,8 +158,22 @@ Détail complet de chaque lot dans le [cahier des charges](./CAHIER_DES_CHARGES.
 ## Tests
 
 - Unitaires : JUnit 5 + Mockito sur la logique métier de chaque service.
-- Intégration : Testcontainers (Postgres, RabbitMQ réels) — voir `event-service` pour un premier exemple à dupliquer.
+- Intégration : Testcontainers (Postgres, RabbitMQ, Redis réels) sur les quatre services métier, dont le test de concurrence sur la dernière place et les deux chemins de la Saga (paiement réussi, paiement échoué avec compensation). Le Gateway, sans base ni broker, est testé face à de faux services HTTP.
 - Frontend : Vitest sur la logique pure (étapes de la Saga, rôles, formulaires) ; pas encore de test de composants ni d'E2E automatisé.
+
+Dans chaque service, `mvn verify` lance les tests, contrôle la couverture (Jacoco, 70 % de lignes minimum) et passe l'analyse statique (SpotBugs). Le build échoue si l'un des trois échoue.
+
+## Intégration continue
+
+Le pipeline GitHub Actions ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)) tourne sur chaque pull request vers `master` et sur chaque push sur `master` :
+
+| Job | Contenu |
+|---|---|
+| `backend (<service>)` | `mvn verify` pour chacun des cinq services, en parallèle ; rapport de couverture disponible en artefact |
+| `frontend` | `npm ci`, tests Vitest, build avec vérification des types |
+| `docker (<image>)` | build des six images, uniquement si les jobs précédents passent ; les images ne sont pas publiées |
+
+`master` est protégée : une pull request ne peut être mergée que si le pipeline est vert.
 
 ## Licence
 
