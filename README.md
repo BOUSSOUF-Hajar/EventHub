@@ -70,6 +70,8 @@ docker compose up -d --build
 
 Cette commande construit les images des cinq services et du frontend, puis démarre l'ensemble avec l'infrastructure (Postgres x3, RabbitMQ, Keycloak, Redis, Mailhog). Le premier build télécharge les images de base et les dépendances Maven et npm ; les suivants réutilisent le cache.
 
+Dans les conteneurs, les services écrivent leurs logs en JSON, une ligne par événement avec le nom du service (profil `json-logs`) : `docker compose logs -f booking-service`. Lancés sur le poste, ils restent en texte lisible.
+
 ### En développement (services lancés sur le poste)
 
 **Prérequis** : Docker & Docker Compose, Java 17, Maven, Node.js 18+.
@@ -159,6 +161,7 @@ Détail complet de chaque lot dans le [cahier des charges](./CAHIER_DES_CHARGES.
 
 - Unitaires : JUnit 5 + Mockito sur la logique métier de chaque service.
 - Intégration : Testcontainers (Postgres, RabbitMQ, Redis réels) sur les quatre services métier, dont le test de concurrence sur la dernière place et les deux chemins de la Saga (paiement réussi, paiement échoué avec compensation). Le Gateway, sans base ni broker, est testé face à de faux services HTTP.
+- Requêtes SQL : les endpoints de liste (`GET /api/events`, `GET /api/bookings/me`) ont un test qui compte les requêtes via les statistiques Hibernate et vérifie qu'il n'y en a qu'une, quel que soit le nombre de lignes (pas de N+1).
 - Frontend : Vitest sur la logique pure (étapes de la Saga, rôles, formulaires) ; pas encore de test de composants ni d'E2E automatisé.
 
 Dans chaque service, `mvn verify` lance les tests, contrôle la couverture (Jacoco, 70 % de lignes minimum) et passe l'analyse statique (SpotBugs). Le build échoue si l'un des trois échoue.
