@@ -50,7 +50,7 @@ Chaque service métier possède sa **propre base de données** (pattern *databas
 
 | Couche | Choix |
 |---|---|
-| Backend | Java 21, Spring Boot 3, Spring Cloud Gateway |
+| Backend | Java 17, Spring Boot 3, Spring Cloud Gateway |
 | Sécurité | Keycloak (OAuth2 / OIDC), Spring Security Resource Server |
 | Messaging | RabbitMQ |
 | Données | PostgreSQL (une instance par service), Redis (verrou de places) |
