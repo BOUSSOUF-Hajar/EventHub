@@ -1,7 +1,7 @@
 # Cahier des charges — EventHub
 
-**Version** : 1.0
-**Statut** : à réaliser
+**Version** : 1.1
+**Statut** : lots 1 à 6 réalisés ; lot 7 (optionnel) non commencé
 **Porteur du projet** : toi — projet personnel destiné à être présenté en entretien technique
 
 ## 1. Contexte et objectifs
@@ -19,7 +19,7 @@ Le projet n'a pas vocation à être un produit commercial : son objectif est de 
 - comment une Saga orchestrée gère une transaction qui traverse plusieurs services, et comment elle compense un échec ;
 - pourquoi un Outbox pattern est nécessaire dès qu'on écrit en base ET qu'on publie un événement ;
 - comment tu as testé un système distribué (Testcontainers) plutôt que de tout mocker ;
-- comment ton pipeline CI/CD garantit qu'un commit cassé n'arrive jamais sur `main`.
+- comment ton pipeline CI/CD garantit qu'un commit cassé n'arrive jamais sur `master`.
 
 ## 2. Périmètre fonctionnel
 
@@ -85,7 +85,7 @@ Le périmètre est volontairement limité à 4 domaines métier. Chaque domaine 
 
 ## 4. Contraintes techniques imposées
 
-- Java 21 / Spring Boot 3.x pour tous les services backend.
+- Java 17 (LTS) / Spring Boot 3.x pour tous les services backend. La version 21 était visée au départ ; le projet est resté en 17, version sur laquelle les services, la CI et les images Docker sont validés.
 - Une base PostgreSQL dédiée par service (pas de base partagée).
 - Toute communication inter-service asynchrone passe par RabbitMQ — pas d'appel REST direct entre `booking-service`, `payment-service` et `notification-service`.
 - Authentification déléguée à Keycloak — aucun stockage de mot de passe applicatif.
